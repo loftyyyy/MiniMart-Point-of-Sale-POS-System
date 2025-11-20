@@ -1,35 +1,31 @@
+; Mini POS System (MASM32)
+; Simulates a simple retail checkout transaction
+    
 include C:\masm32\include\masm32rt.inc
 
 .data
 
-    intro db "Hi guys, welcome to my channel", 13, 10,0
-    name_prompt db "What's your name? ", 0
-    string db 50 dup(?)
-    name_result db "Your name is: ", 0
+    
+    ; Text Menu Header
+    textMenu db "=== Mini POS System ===", 13, 10,
+               "1. Coffee   - ₱50",13,10,
+               "2. Donut    - ₱30",13,10,
+               "3. Sandwich - ₱90",13,10,
+               "Selection [1-3]: ", 0
+                
+    ; Receipt Structure
+    receiptHeader db ""
+
+
 
 
 .code
 
-start:
+    start:
 
-    push offset intro
-    call StdOut
+        push offset textMenu
+        call StdOut
 
-    push offset name_prompt
-    call StdOut
+        
 
-    push 50
-    push offset string
-    call StdIn
-
-    push offset name_result
-    call StdOut
-
-    push offset string
-    call StdOut
-
-    
-
-
-
-end start
+    end start
