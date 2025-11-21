@@ -4,6 +4,21 @@ include C:\masm32\include\masm32rt.inc
 
 .data
 
+    ;Current Time and Date 
+    LPSYSTEMTIME STRUCT
+        wYear   WORD ?
+        wMonth  WORD ?
+        wDay    WORD ?
+        wHour   WORD ?
+        wMinute WORD ?
+        wSecond WORD ?
+    LPSYSTEMTIME ENDS
+
+    localTime LPSYSTEMTIME <>
+
+
+
+
     ;Coffee Art
     coffeeArt db  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀ ⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",13,10
                db "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡼⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",13,10
@@ -71,6 +86,7 @@ include C:\masm32\include\masm32rt.inc
 
         push offset userInput
         call StdOut
+
 
 
 
