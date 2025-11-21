@@ -1,6 +1,5 @@
 ; Mini POS System (MASM32)
 ; Simulates a simple retail checkout transaction
-    
 include C:\masm32\include\masm32rt.inc
 
 .data
