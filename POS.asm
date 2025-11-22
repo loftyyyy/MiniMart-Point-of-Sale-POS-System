@@ -64,12 +64,18 @@ include C:\masm32\include\masm32rt.inc
     ;output result
     userOutput db "Hello, you picked: ",0
 
+    ;invalid input
+    invalidInput db "Invalid, input. Please pick the correct number", 0
+
+    ;Buffers
+    itemIdx DWORD ?
+
 .code
 
     start:
         
 
-        push offset coffeeArt;
+        push offset coffeeArt
         call StdOut
 
         
@@ -79,7 +85,17 @@ include C:\masm32\include\masm32rt.inc
         push 50
         push offset userInput
         call StdIn
+        push offset userInput
+        call val
+        mov itemIdx, eax
 
+        cmp eax, 1
+        jl invalid_input
+
+        cmp eax, 3
+        jg invalid_input
+
+         
 
         push offset userOutput
         call StdOut
@@ -88,6 +104,10 @@ include C:\masm32\include\masm32rt.inc
         call StdOut
 
 
+    invalid_input:
+        push offset invalidInput
+        call StdOut
+        
 
 
     end start
