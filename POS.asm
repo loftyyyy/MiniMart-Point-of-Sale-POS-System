@@ -1,4 +1,4 @@
-; Mini POS System (MASM32)
+; MiniMart POS System (MASM32)
 ; Simulates a simple retail checkout transaction
 include C:\masm32\include\masm32rt.inc
 
@@ -54,6 +54,7 @@ include C:\masm32\include\masm32rt.inc
 
     qtyPrompt db "Enter Quantity: ", 0
     anotherMsg db "Add another item? (Y/N): ",0 
+    paymentMsg db "Payment Amount:   ₱",0
 
                 
     ; ==== Receipt Messages ====
@@ -77,7 +78,10 @@ include C:\masm32\include\masm32rt.inc
     taxText   db "VAT (12%):        ₱",0
     totalText db "Total Amount:     ₱",0
     dashLine2 db "===========================", 0
-    paymentMsg db "Payment Amount:   ₱",0
+    paidText  db "Amount Paid:      ₱",0
+    changeText db "Change:           ₱",0  
+
+
 
 
     ;input
