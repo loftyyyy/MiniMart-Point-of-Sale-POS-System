@@ -70,7 +70,14 @@ include C:\masm32\include\masm32rt.inc
               db "Candy", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 8)
               db "Egg", 0,0,0,0,0,0    ; 3 chars + 7 nulls = 10 bytes (Index 9)
     priceText db " x ", 0
-    atText    db " @ ₱ ", 0
+    atText    db " @ ₱", 0
+    equalText db " = ₱", 0
+    dashLine  db "--------------------------", 0
+    subText   db "Sub Total:        ₱",0        
+    taxText   db "VAT (12%):        ₱",0
+    totalText db "Total Amount:     ₱",0
+    dashLine2 db "===========================", 0
+    paymentMsg db "Payment Amount:   ₱",0
 
 
     ;input
@@ -107,7 +114,7 @@ include C:\masm32\include\masm32rt.inc
         cmp eax, 1
         jl invalid_input
 
-        cmp eax, 3
+        cmp eax, 10
         jg invalid_input
 
          
