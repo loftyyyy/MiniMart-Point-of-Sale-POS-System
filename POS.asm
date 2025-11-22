@@ -102,13 +102,14 @@ include C:\masm32\include\masm32rt.inc
     payment         DWORD ?
     change          DWORD ?
 
+    ; Store item details for receipt (max 10 items for now) 
+    receiptItems    DWORD 10 dup(0)
+    receiptQtys     DWORD 10 dup(0)
+    receiptTotals   DWORD 10 dup(0)
 
 
 
 
-
-    ;output result
-    userOutput db "Hello, you picked: ",0
 
 
 .code
@@ -138,10 +139,10 @@ include C:\masm32\include\masm32rt.inc
 
          
 
-        push offset userOutput
+        push offset thankYouMsg
         call StdOut
 
-        push offset userInput
+        push offset inputBuf
         call StdOut
 
         invoke ExitProcess,0
