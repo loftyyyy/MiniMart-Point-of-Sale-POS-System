@@ -115,6 +115,10 @@ include C:\masm32\include\masm32rt.inc
 .code
 
     start:
+
+        mov runningTotal, 0
+        mov itemCount, 0
+
         
 
         push offset shoppingCartArt
