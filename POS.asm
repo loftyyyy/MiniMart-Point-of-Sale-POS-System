@@ -86,7 +86,7 @@ include C:\masm32\include\masm32rt.inc
         push offset userInput
         call StdIn
         push offset userInput
-        call val
+        call atodw              ;converts string to int and return it as eax 
         mov itemIdx, eax
 
         cmp eax, 1
@@ -102,6 +102,8 @@ include C:\masm32\include\masm32rt.inc
 
         push offset userInput
         call StdOut
+
+        invoke ExitProcess,0
 
 
     invalid_input:
