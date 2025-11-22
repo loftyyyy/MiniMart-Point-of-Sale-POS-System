@@ -19,7 +19,7 @@ include C:\masm32\include\masm32rt.inc
 
 
 
-    ;Coffee Art
+    ; ==== Coffee Art ==== 
     coffeeArt db  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀ ⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",13,10
                db "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡼⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",13,10
                db "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼⠇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",13,10
@@ -48,12 +48,16 @@ include C:\masm32\include\masm32rt.inc
                db 0
     
     
-    ; Text Menu Header
+    ; ==== Menu Text ====
     textMenu db "========= Mini Coffee POS System =========", 13, 10,
                "1. Coffee   - ₱50",13,10,
                "2. Donut    - ₱30",13,10,
                "3. Sandwich - ₱90",13,10,
                "Selection [1-3]: ", 0
+
+    qtyPrompt db "Enter Quantity: ", 0
+    anotherMsg db "Add another item? (Y/N): ",0 
+
                 
     ; Receipt Structure
     receiptHeader db "Hi guys, test muna",0
@@ -67,7 +71,7 @@ include C:\masm32\include\masm32rt.inc
     ;invalid input
     invalidInput db "Invalid, input. Please pick the correct number", 0
 
-    ;Buffers
+    ; ==== Buffers ==== 
     itemIdx DWORD ?
 
 .code
