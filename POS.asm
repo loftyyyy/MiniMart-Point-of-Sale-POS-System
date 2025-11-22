@@ -81,20 +81,35 @@ include C:\masm32\include\masm32rt.inc
     paidText  db "Amount Paid:      ₱",0
     changeText db "Change:           ₱",0  
 
+    ; ==== Response Messages ====
+    insuffMsg db "Insufficient payment! Please pay at least ₱",0 
+    thankYouMsg db "Thank you for your purchase!",0
+    invalidMsg db"Invalid selection! Please pick the correct number"
+
+    ; ==== Prices ====
+    priceTable DWORD 39, 12, 15, 50, 25, 30, 20, 15, 5, 8
+
+    ; ==== Buffers ====
+    inputBuf        db 32 dup(0)
+    itemIdx         DWORD ?
+    price           DWORD ?
+    quantity        DWORD ?
+    itemTotal       DWORD ?
+    runningTotal    DWORD 0
+    itemCount       DWORD 0
+    tax             DWORD ?
+    finalTotal      DWORD ?
+    payment         DWORD ?
+    change          DWORD ?
 
 
 
-    ;input
-    userInput db 50 dup(?) 
+
+
 
     ;output result
     userOutput db "Hello, you picked: ",0
 
-    ;invalid input
-    invalidInput db "Invalid, input. Please pick the correct number", 0
-
-    ; ==== Buffers ==== 
-    itemIdx DWORD ?
 
 .code
 
@@ -108,10 +123,10 @@ include C:\masm32\include\masm32rt.inc
         push offset textMenu
         call StdOut
 
-        push 50
-        push offset userInput
+        push 32
+        push offset inputBuf
         call StdIn
-        push offset userInput
+        push offset inputBuf
         call atodw              ;converts string to int and return it as eax 
         mov itemIdx, eax
 
@@ -133,7 +148,7 @@ include C:\masm32\include\masm32rt.inc
 
 
     invalid_input:
-        push offset invalidInput
+        push offset invalidMsg
         call StdOut
         
 
