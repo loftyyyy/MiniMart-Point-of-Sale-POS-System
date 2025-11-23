@@ -84,7 +84,11 @@ include C:\masm32\include\masm32rt.inc
     ; ==== Response Messages ====
     insuffMsg db "Insufficient payment! Please pay at least ₱",0 
     thankYouMsg db "Thank you for your purchase!",0
-    invalidMsg db"Invalid selection! Please pick the correct number"
+    invalidSelectionMsg db "Invalid selection! Please pick the correct number", 0
+    invalidQuantityMsg db "Invalid Quantity! Please input the correct number", 0
+    invalidTypeMsg db "Please input a number."
+
+
 
     ; ==== Prices ====
     priceTable DWORD 39, 12, 15, 50, 25, 30, 20, 15, 5, 8
@@ -136,19 +140,19 @@ include C:\masm32\include\masm32rt.inc
         
         ; ==== Check if input is empty ====
         cmp byte ptr [inputBuf], 0
-        je invalid_input
+        je invalid_selection_input
 
         ; ==== Convert input to int ====
         push offset inputBuf
         call atodw ; converts string to int
-        jc invalid_input ; Jumps if input is not a number
+        jc invalid_type_input ; Jumps if input is not a number
         mov itemIdx, eax
  
         ; ===== Validate input (1-3) =====
         cmp eax, 1
-        jl invalid_input
+        jl invalid_selection_input
         cmp eax, 10
-        jg invalid_input
+        jg invalid_selection_input
 
         ; ==== Convert user selection to 0 based index ====
         dec eax
@@ -168,16 +172,37 @@ include C:\masm32\include\masm32rt.inc
         push offset inputBuf
         call StdIn
         
-        ; ==== Validate quantity input ====
+        ; ==== Check if input is empty ====
         cmp byte ptr [inputBuf], 0
-        je invalid_input
+        je invalid_quantity_input
         
-        cmp inputBuf, 0
-        jle invalid_input
+        ; ==== Validate that input contains only digits ====
+        mov esi, offset inputBuf
+        validate_digit_loop:
+            mov al, [esi]
+            cmp al, 0                    ; End of string?
+            je digits_valid
+            cmp al, 13                   ; Carriage return?
+            je digits_valid
+            cmp al, 10                   ; Line feed?
+            je digits_valid
+            cmp al, '0'                  ; Less than '0'?
+            jb invalid_quantity_input
+            cmp al, '9'                  ; Greater than '9'?
+            ja invalid_quantity_input
+            inc esi
+            jmp validate_digit_loop
         
+        digits_valid:
+        ; ==== Convert input to integer ====
         push offset inputBuf
         call atodw
-        jc invalid_input
+        jc invalid_quantity_input
+        
+        ; ==== Check if quantity is greater than 0 ====
+        cmp eax, 0
+        jle invalid_quantity_input
+        
         mov quantity, eax
 
         ; ==== Compute item subtotal ====
@@ -192,18 +217,53 @@ include C:\masm32\include\masm32rt.inc
         mov runningTotal, eax
     
         ; ==== Store item details for receipt ====
+        mov eax, itemCount
+        mov ebx, itemIdx
+        mov receiptItems[eax*4],ebx
+        mov ebx, quantity
+        mov receiptQtys[eax*4],ebx
+        mov ebx, itemTotal
+        mov receiptTotals[eax*4],ebx
         
+        ;==== Increase Item Count ====
+        inc itemCount
         
+        ; ==== Ask if user wants another item ====
+        push offset anotherMsg
+        call StdOut
+
+        push 32
+        push offset inputBuf
+        call StdIn
+
+        mov al, byte ptr [inputBuf]
+        ;cmp 
+        
+
         
 
    
         jmp exit_program
 
 
-    invalid_input:
-        push offset invalidMsg
+    invalid_selection_input:
+        push offset invalidSelectionMsg
         call StdOut
+
+        jmp exit_program
         
+
+    invalid_quantity_input:
+        push offset invalidQuantityMsg
+        call StdOut
+
+        jmp exit_program
+
+    invalid_type_input:
+        push offset invalidTypeMsg
+        call StdOut
+
+        jmp exit_program
 
     exit_program:
         invoke ExitProcess, 0
