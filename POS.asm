@@ -175,9 +175,9 @@ include C:\masm32\include\masm32rt.inc
         cmp inputBuf, 0
         jl invalid_input
         
-
         push offset inputBuf
         call atodw
+        jc invalid_input
         mov quantity, eax
 
         ; ==== Compute item subtotal ====
