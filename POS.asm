@@ -139,8 +139,7 @@ include C:\masm32\include\masm32rt.inc
         push offset inputBuf
         call atodw ; converts string to int
         mov itemIdx, eax
-
-        
+ 
         ; ===== Validate input (1-3) =====
         cmp eax, 1
         jl invalid_input
