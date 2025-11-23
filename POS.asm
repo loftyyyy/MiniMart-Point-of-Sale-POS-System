@@ -120,36 +120,14 @@ include C:\masm32\include\masm32rt.inc
         mov itemCount, 0
 
         
+    item_loop:
+        
+        ; ==== Display Menu ====;
 
-        push offset shoppingCartArt
-        call StdOut
+        ; ===== Read item number =====
 
         
-        push offset textMenu
-        call StdOut
-
-        push 32
-        push offset inputBuf
-        call StdIn
-        push offset inputBuf
-        call atodw              ;converts string to int and return it as eax 
-        mov itemIdx, eax
-
-        cmp eax, 1
-        jl invalid_input
-
-        cmp eax, 10
-        jg invalid_input
-
-         
-
-        push offset thankYouMsg
-        call StdOut
-
-        push offset inputBuf
-        call StdOut
-
-        invoke ExitProcess,0
+        ; ===== Validate input (1-3) =====
 
 
     invalid_input:
