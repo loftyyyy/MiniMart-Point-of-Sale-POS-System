@@ -141,6 +141,7 @@ include C:\masm32\include\masm32rt.inc
         ; ==== Convert input to int ====
         push offset inputBuf
         call atodw ; converts string to int
+        jc invalid_input ; Jumps if input is not a number
         mov itemIdx, eax
  
         ; ===== Validate input (1-3) =====
@@ -158,7 +159,8 @@ include C:\masm32\include\masm32rt.inc
         mov eax, priceTable[ebx*4]
         mov price, eax
         
-        ; ==== Ask for item quantity and store it ====
+    ; ==== Ask for item quantity and store it ====
+    read_quantity:
         push offset qtyPrompt
         call StdOut
         
@@ -166,6 +168,14 @@ include C:\masm32\include\masm32rt.inc
         push offset inputBuf
         call StdIn
         
+        ; ==== Validate quantity input ====
+        cmp byte ptr [inputBuf], 0
+        je invalid_input
+        
+        cmp inputBuf, 0
+        jl invalid_input
+        
+
         push offset inputBuf
         call atodw
         mov quantity, eax
