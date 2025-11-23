@@ -1,6 +1,7 @@
 ; MiniMart POS System (MASM32)
 ; Simulates a simple retail checkout transaction
 include C:\masm32\include\masm32rt.inc
+;include C:\irvine32\Irvine32.inc
 
 .data
 
@@ -199,7 +200,7 @@ include C:\masm32\include\masm32rt.inc
         call atodw
         jc invalid_quantity_input
         
-        ; ==== Check if quantity is greater than 0 ====
+        ; ==== Check if quantity is less than or equal to 0. That means its a negative number ====
         cmp eax, 0
         jle invalid_quantity_input
         
