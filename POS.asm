@@ -111,6 +111,7 @@ include C:\masm32\include\masm32rt.inc
 
 
 
+    selectedItem DWORD ?
 
 .code
 
@@ -146,10 +147,19 @@ include C:\masm32\include\masm32rt.inc
         cmp eax, 10
         jg invalid_input
 
-        ; ==== Convert user input to 0 based index ====
+        ; ==== Convert user selection to 0 based index ====
         dec eax
         mov itemIdx, eax
 
+        ; ==== Fetch Price based on user selection ====
+        mov ebx, itemIdx
+        mov eax, priceTable[ebx*4]
+        mov price, eax
+        
+
+        push offset thankYouMsg
+        call StdOut
+        invoke StdOut, str$(price)
         
 
         invoke ExitProcess, 0
