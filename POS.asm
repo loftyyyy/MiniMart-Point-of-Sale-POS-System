@@ -173,7 +173,7 @@ include C:\masm32\include\masm32rt.inc
         je invalid_input
         
         cmp inputBuf, 0
-        jl invalid_input
+        jle invalid_input
         
         push offset inputBuf
         call atodw
@@ -184,6 +184,16 @@ include C:\masm32\include\masm32rt.inc
         mov eax, price
         mov ebx, quantity
         mul ebx
+        mov itemTotal, eax
+
+        ; ==== Add to running total ====
+        mov eax, runningTotal
+        add eax, itemTotal
+        mov runningTotal, eax
+    
+        ; ==== Store item details for receipt ====
+        
+        
         
 
    
