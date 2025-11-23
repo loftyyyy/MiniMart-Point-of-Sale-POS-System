@@ -133,6 +133,10 @@ include C:\masm32\include\masm32rt.inc
         push 32
         push offset inputBuf
         call StdIn 
+        
+        ; ==== Check if input is empty ====
+        cmp byte ptr [inputBuf], 0
+        je invalid_input
 
         ; ==== Convert input to int ====
         push offset inputBuf
@@ -162,20 +166,27 @@ include C:\masm32\include\masm32rt.inc
         push offset inputBuf
         call StdIn
         
-
         push offset inputBuf
         call atodw
         mov quantity, eax
+
+        ; ==== Compute item subtotal ====
+        mov eax, price
+        mov ebx, quantity
+        mul ebx
         
 
    
+        jmp exit_program
 
-        invoke ExitProcess, 0
 
     invalid_input:
         push offset invalidMsg
         call StdOut
         
 
+    exit_program:
+        invoke ExitProcess, 0
+        
 
     end start
