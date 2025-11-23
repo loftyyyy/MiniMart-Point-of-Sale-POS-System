@@ -111,8 +111,6 @@ include C:\masm32\include\masm32rt.inc
 
 
 
-    selectedItem DWORD ?
-
 .code
 
     start:
@@ -156,11 +154,21 @@ include C:\masm32\include\masm32rt.inc
         mov eax, priceTable[ebx*4]
         mov price, eax
         
-
-        push offset thankYouMsg
+        ; ==== Ask for item quantity and store it ====
+        push offset qtyPrompt
         call StdOut
-        invoke StdOut, str$(price)
         
+        push 32
+        push offset inputBuf
+        call StdIn
+        
+
+        push offset inputBuf
+        call atodw
+        mov quantity, eax
+        
+
+   
 
         invoke ExitProcess, 0
 
