@@ -146,6 +146,10 @@ include C:\masm32\include\masm32rt.inc
         cmp eax, 10
         jg invalid_input
 
+        ; ==== Convert user input to 0 based index ====
+        dec eax
+        mov itemIdx, eax
+
         
 
         invoke ExitProcess, 0
