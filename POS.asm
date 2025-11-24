@@ -134,6 +134,8 @@ include C:\masm32\include\masm32rt.inc
         ; ==== Display Menu ====;
         push offset textMenu
         call StdOut
+
+    read_item:
         
         ; ===== Read and Store item number =====
         push 32
@@ -421,7 +423,7 @@ include C:\masm32\include\masm32rt.inc
         push offset invalidSelectionMsg
         call StdOut
 
-        jmp exit_program
+        jmp read_item
         
 
     invalid_quantity_input:
@@ -434,7 +436,7 @@ include C:\masm32\include\masm32rt.inc
         push offset invalidTypeMsg
         call StdOut
 
-        jmp exit_program
+        jmp read_item
 
     invalid_payment_input:
         push offset invalidPay
