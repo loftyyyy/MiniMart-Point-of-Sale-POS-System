@@ -239,6 +239,7 @@ include C:\masm32\include\masm32rt.inc
 
         mov al, byte ptr [inputBuf]
         cmp al, 'Y'
+        je item_loop
         
 
         
