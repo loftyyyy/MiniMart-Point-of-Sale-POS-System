@@ -85,7 +85,7 @@ include C:\masm32\include\masm32rt.inc
     ; ==== Response Messages ====
     insuffMsg db "Insufficient payment! Please pay at least ₱",0 
     thankYouMsg db "Thank you for your purchase!",13,10,0
-    invalidSelectionMsg db "Invalid selection! Please pick the correct number", 13, 10, 0
+    invalidSelectionMsg db "Invalid selection! Please enter the correct number: ", 0
     invalidQuantityMsg db "Invalid Quantity! Please enter a positive number", 13, 10, 0
     invalidTypeMsg db "Please input a number!", 13,10, 0
     invalidPay db "Invalid payment! Please enter a valid amount", 13, 10, 0
@@ -130,7 +130,6 @@ include C:\masm32\include\masm32rt.inc
         
     item_loop:
         
-
         ; ==== Display Menu ====;
         push offset textMenu
         call StdOut
@@ -332,6 +331,11 @@ include C:\masm32\include\masm32rt.inc
         ; ==== Print Item Number ====
         push offset itemText
         call StdOut
+        mov eax, ecx
+        inc eax
+        invoke StdOut, str$(eax)
+        invoke StdOut, chr$(":")
+        
 
         ; ==== Print Item Name ====
         mov eax, receiptItems[ecx*4]
