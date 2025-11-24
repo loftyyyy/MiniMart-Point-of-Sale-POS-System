@@ -384,6 +384,13 @@ include C:\masm32\include\masm32rt.inc
         ;==== Print Separator ==== 
         push offset dashLine
         call StdOut
+        
+        ; ==== Print Final Total ====
+        push offset totalText
+        call StdOut
+        invoke StdOut, str$(finalTotal)
+        invoke StdOut, chr$(13,10)
+        
 
         
     
