@@ -263,6 +263,16 @@ include C:\masm32\include\masm32rt.inc
         invoke StdOut, str$(finalTotal)
         invoke StdOut, chr$(13,10)
         
+        payment_loop:
+            
+            ; ==== Ask for payment ====
+            push offset paymentMsg
+            call StdOut
+            
+            push 32
+            push offset inputBuf
+            call StdIn
+
 
         
     
