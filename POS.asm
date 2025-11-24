@@ -339,6 +339,19 @@ include C:\masm32\include\masm32rt.inc
         add ebx, eax
         invoke StdOut, ebx
         
+        ; ==== Print Quantity Of the Item ====
+        push offset priceText
+        call StdOut
+        invoke StdOut, str$(receiptQtys[ecx*4]
+        
+        ; ==== Print Price Of the Item ====
+        push offset atText
+        call StdOut
+        mov eax, receiptItems[ecx*4]
+        mov ebx, priceTable[eax*4]
+        invoke StdOut, str$(ebx)
+
+
 
 
 
