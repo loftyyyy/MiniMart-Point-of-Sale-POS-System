@@ -86,8 +86,9 @@ include C:\masm32\include\masm32rt.inc
     insuffMsg db "Insufficient payment! Please pay at least ₱",0 
     thankYouMsg db "Thank you for your purchase!",0
     invalidSelectionMsg db "Invalid selection! Please pick the correct number", 0
-    invalidQuantityMsg db "Invalid Quantity! Please input the correct number", 0
-    invalidTypeMsg db "Please input a number."
+    invalidQuantityMsg db "Invalid Quantity! Please enter a positive number", 0
+    invalidTypeMsg db "Please input a number!", 0
+    invalidPay db "Invalid payment! Please enter a valid amount", 0
 
 
 
@@ -272,6 +273,45 @@ include C:\masm32\include\masm32rt.inc
             push 32
             push offset inputBuf
             call StdIn
+            
+            ; ==== Input validation ====
+            cmp byte ptr [inputBuf], 0
+            je invalid_payment_input
+
+            cmp byte ptr [inputBuf], '-'
+            je invalid_payment_input
+        
+            ; ==== Validate that payment input contains only digits ====
+            mov esi, offset inputBuf
+            validate_payment_loop:
+                mov al, [esi]
+                cmp al, 0                    ; End of string?
+                je valid_payment
+                cmp al, 13                   ; Carriage return?
+                je valid_payment
+                cmp al, 10                   ; Line feed?
+                je valid_payment
+                cmp al, '0'                  ; Less than '0'?
+                jb invalid_payment_input
+                cmp al, '9'                  ; Greater than '9'?
+                ja invalid_payment_input
+                inc esi
+                jmp validate_payment_loop
+
+            valid_payment:
+                                
+                push offset inputBuf
+                call atodw
+
+                ; ==== Checks if payment is less than or equal to 0 ====
+
+                ; ==== Checks if payment amount is less than total amount ====
+                cmp eax, finalTotal
+                jl insufficient_payment
+            
+            
+
+
 
 
         
@@ -301,6 +341,19 @@ include C:\masm32\include\masm32rt.inc
         push offset invalidTypeMsg
         call StdOut
 
+        jmp exit_program
+
+    invalid_payment_input:
+        push offset invalidPay
+        call StdOut
+        
+        jmp exit_program
+    
+    insufficient_payment:
+        push offset insuffMsg
+        call StdOut
+        invoke StdOut, str$(finalTotal)
+        
         jmp exit_program
 
     exit_program:
