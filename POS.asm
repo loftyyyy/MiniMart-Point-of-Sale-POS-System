@@ -316,7 +316,9 @@ include C:\masm32\include\masm32rt.inc
                 sub eax, finalTotal
                 mov change, eax
                 
-                ; ==== Princt Receipt ==== 
+                ; ==== Print Receipt ==== 
+                push offset receiptHdr
+                call StdOut
             
 
 
