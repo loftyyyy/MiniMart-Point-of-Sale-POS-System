@@ -302,13 +302,21 @@ include C:\masm32\include\masm32rt.inc
                                 
                 push offset inputBuf
                 call atodw
+                mov payment, eax
 
                 ; ==== Checks if payment is less than or equal to 0 ====
+                cmp eax, 0
+                jle invalid_payment_input
 
                 ; ==== Checks if payment amount is less than total amount ====
                 cmp eax, finalTotal
                 jl insufficient_payment
             
+                ; ==== Calculate Change ====
+                sub eax, finalTotal
+                mov change, eax
+                
+                ; ==== Princt Receipt ==== 
             
 
 
