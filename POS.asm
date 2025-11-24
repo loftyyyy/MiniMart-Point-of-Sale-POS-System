@@ -256,6 +256,12 @@ include C:\masm32\include\masm32rt.inc
         mov eax, runningTotal
         add eax, tax
         mov finalTotal, eax
+
+        ; ==== Display total before payment ====
+        invoke StdOut, chr$(13,10)
+        invoke StdOut, addr totalText
+        invoke StdOut, str$(finalTotal)
+        invoke StdOut, chr$(13,10)
         
 
         
