@@ -390,6 +390,11 @@ include C:\masm32\include\masm32rt.inc
         call StdOut
         invoke StdOut, str$(finalTotal)
         invoke StdOut, chr$(13,10)
+
+        
+        ;==== Print Separator ==== 
+        push offset dashLine2
+        call StdOut
         
 
         
