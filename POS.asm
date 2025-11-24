@@ -319,8 +319,26 @@ include C:\masm32\include\masm32rt.inc
                 ; ==== Print Receipt ==== 
                 push offset receiptHdr
                 call StdOut
-            
 
+                ; ==== Counter ====
+                mov ecx, 0
+
+    print_items:
+        cmp ecx, itemCount
+        jge print_totals
+
+        ; ==== Print Item Number ====
+        push offset itemText
+        call StdOut
+
+        ; ==== Print Item Name ====
+        mov eax, receiptItems[ecx*4]
+        mov ebx, 10
+        mul ebx
+        lea ebx, itemNames
+        add ebx, eax
+        invoke StdOut, ebx
+        
 
 
 
