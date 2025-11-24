@@ -403,13 +403,17 @@ include C:\masm32\include\masm32rt.inc
         invoke StdOut, str$(payment)
         invoke StdOut, chr$(13,10)
         
+        push offset changeText
+        call StdOut
+        invoke StdOut, str$(change)
+        invoke StdOut, chr$(13,10)
         
-    
-
-
+        ; ==== Print Thank you message ====
+        push offset thankYouMsg
+        call StdOut
         
-
-
+        
+        
         jmp exit_program
 
 
@@ -424,7 +428,7 @@ include C:\masm32\include\masm32rt.inc
         push offset invalidQuantityMsg
         call StdOut
 
-        jmp exit_program
+        jmp read_quantity
 
     invalid_type_input:
         push offset invalidTypeMsg
@@ -436,14 +440,14 @@ include C:\masm32\include\masm32rt.inc
         push offset invalidPay
         call StdOut
         
-        jmp exit_program
+        jmp payment_loop
     
     insufficient_payment:
         push offset insuffMsg
         call StdOut
         invoke StdOut, str$(finalTotal)
         
-        jmp exit_program
+        jmp payment_loop
 
     exit_program:
         invoke ExitProcess, 0
