@@ -397,6 +397,12 @@ include C:\masm32\include\masm32rt.inc
         call StdOut
         
 
+        ; ==== Print Payment Details ====
+        push offset paidText
+        call StdOut
+        invoke StdOut, str$(payment)
+        invoke StdOut, chr$(13,10)
+        
         
     
 
