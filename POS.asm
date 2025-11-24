@@ -194,7 +194,7 @@ include C:\masm32\include\masm32rt.inc
             inc esi
             jmp validate_digit_loop
         
-        digits_valid:
+    digits_valid:
         ; ==== Convert input to integer ====
         push offset inputBuf
         call atodw
@@ -216,7 +216,7 @@ include C:\masm32\include\masm32rt.inc
         mov eax, runningTotal
         add eax, itemTotal
         mov runningTotal, eax
-    
+
         ; ==== Store item details for receipt ====
         mov eax, itemCount
         mov ebx, itemIdx
@@ -240,11 +240,31 @@ include C:\masm32\include\masm32rt.inc
         mov al, byte ptr [inputBuf]
         cmp al, 'Y'
         je item_loop
+        cmp al, 'y'
+        je item_loop
+        
+        ; ==== Compute TAX (12%) ====
+        mov eax, runningTotal
+        mov ebx, 12
+        mul ebx
+        mov ebx, 100
+        xor edx, edx
+        div ebx
+        mov tax, eax
+
+        ; ==== Compute FINAL TOTAL ====
+        mov eax, runningTotal
+        add eax, tax
+        mov finalTotal, eax
         
 
         
+    
 
-   
+
+        
+
+
         jmp exit_program
 
 
