@@ -84,11 +84,11 @@ include C:\masm32\include\masm32rt.inc
 
     ; ==== Response Messages ====
     insuffMsg db "Insufficient payment! Please pay at least ₱",0 
-    thankYouMsg db "Thank you for your purchase!",0
-    invalidSelectionMsg db "Invalid selection! Please pick the correct number", 0
-    invalidQuantityMsg db "Invalid Quantity! Please enter a positive number", 0
-    invalidTypeMsg db "Please input a number!", 0
-    invalidPay db "Invalid payment! Please enter a valid amount", 0
+    thankYouMsg db "Thank you for your purchase!",13,10,0
+    invalidSelectionMsg db "Invalid selection! Please pick the correct number", 13, 10, 0
+    invalidQuantityMsg db "Invalid Quantity! Please enter a positive number", 13, 10, 0
+    invalidTypeMsg db "Please input a number!", 13,10, 0
+    invalidPay db "Invalid payment! Please enter a valid amount", 13, 10, 0
 
 
 
@@ -124,12 +124,12 @@ include C:\masm32\include\masm32rt.inc
         mov runningTotal, 0
         mov itemCount, 0
 
-        
-    item_loop:
-        
         ; ==== Display Shopping Cart Art ====;
         push offset shoppingCartArt
         call StdOut
+        
+    item_loop:
+        
 
         ; ==== Display Menu ====;
         push offset textMenu
@@ -344,7 +344,7 @@ include C:\masm32\include\masm32rt.inc
         ; ==== Print Quantity Of the Item ====
         push offset priceText
         call StdOut
-        invoke StdOut, str$(receiptQtys[ecx*4]
+        invoke StdOut, str$(receiptQtys[ecx*4])
         
         ; ==== Print Price Of the Item ====
         push offset atText
@@ -354,7 +354,7 @@ include C:\masm32\include\masm32rt.inc
         invoke StdOut, str$(ebx)
 
         ; ==== Print Item Total ====
-        push offset equalsText
+        push offset equalText
         call StdOut
         invoke StdOut, str$(receiptTotals[ecx*4])
         invoke StdOut, chr$(13,10)
