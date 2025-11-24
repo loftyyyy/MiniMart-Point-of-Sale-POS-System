@@ -351,9 +351,39 @@ include C:\masm32\include\masm32rt.inc
         mov ebx, priceTable[eax*4]
         invoke StdOut, str$(ebx)
 
+        ; ==== Print Item Total ====
+        push offset equalsText
+        call StdOut
+        invoke StdOut, str$(receiptTotals[ecx*4])
+        invoke StdOut, chr$(13,10)
+
+        ; ==== Increase count ====
+        inc ecx
+
+        ; ==== Loop back to print_items label ====
+        jmp print_items
 
 
+    print_totals:
+        ;==== Print Separator ==== 
+        push offset dashLine
+        call StdOut
 
+        ; ==== Print Subtotal ====
+        push offset subText
+        call StdOut
+        invoke StdOut, str$(runningTotal)
+        invoke StdOut, chr$(13,10)
+
+        ; ==== Print Tax Amount ====
+        push offset taxText
+        call StdOut
+        invoke StdOut, str$(tax)
+        invoke StdOut, chr$(13,10)
+        
+        ;==== Print Separator ==== 
+        push offset dashLine
+        call StdOut
 
         
     
