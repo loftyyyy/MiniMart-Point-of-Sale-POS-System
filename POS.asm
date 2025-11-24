@@ -238,7 +238,7 @@ include C:\masm32\include\masm32rt.inc
         call StdIn
 
         mov al, byte ptr [inputBuf]
-        ;cmp 
+        cmp al, 'Y'
         
 
         
