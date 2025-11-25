@@ -59,7 +59,7 @@ include C:\masm32\include\masm32rt.inc
 
                 
     ; ==== Receipt Messages ====
-    receiptHdr db 13,10, "========= RECEIPT =========",0
+    receiptHdr db 13,10, "========= RECEIPT =========",13,10,0
     itemText db "Item ",0
     itemNames db "Coffee", 0,0,0,0     ; 6 chars + 4 nulls = 10 bytes (Index 0)
               db "Donut", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 1)
@@ -74,6 +74,7 @@ include C:\masm32\include\masm32rt.inc
     priceText db " x ", 0
     atText    db " @ ₱", 0
     equalText db " = ₱", 0
+    colonText db ": ", 0
     dashLine  db "--------------------------", 0
     subText   db "Sub Total:        ₱",0        
     taxText   db "VAT (12%):        ₱",0
@@ -328,14 +329,18 @@ include C:\masm32\include\masm32rt.inc
         cmp ecx, itemCount
         jge print_totals
 
-        ; ==== Print Item Number ====
+        ; ==== Print "Item " ====
         push offset itemText
         call StdOut
+        
+        ; ==== Print Item Number ====
         mov eax, ecx
         inc eax
         invoke StdOut, str$(eax)
-        invoke StdOut, chr$(":")
         
+        ; ==== Print ": " ====
+        push offset colonText
+        call StdOut
 
         ; ==== Print Item Name ====
         mov eax, receiptItems[ecx*4]
