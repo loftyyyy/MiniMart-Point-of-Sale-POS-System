@@ -115,6 +115,8 @@ include C:\masm32\include\masm32rt.inc
     receiptTotals   DWORD 10 dup(0)
 
 
+    ; other stuff
+    clsCmd db "cls", 0
 
 
 
@@ -469,4 +471,3 @@ include C:\masm32\include\masm32rt.inc
     ; put Stocks on items
     ; add item
     ; dashboard
-    ; 
