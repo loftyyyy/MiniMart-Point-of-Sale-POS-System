@@ -137,8 +137,7 @@ include C:\masm32\include\masm32rt.inc
         push offset textMenu
         call StdOut
 
-    read_item:
-        
+    read_item: 
         ; ===== Read and Store item number =====
         push 32
         push offset inputBuf
@@ -244,9 +243,17 @@ include C:\masm32\include\masm32rt.inc
 
         mov al, byte ptr [inputBuf]
         cmp al, 'Y'
-        je item_loop
+        jne check_lowercase
+        invoke crt_system, addr clsCmd
+        jmp item_loop
+
+    check_lowercase:
         cmp al, 'y'
-        je item_loop
+        jne compute_tax
+        invoke crt_system, addr clsCmd
+        jmp item_loop
+
+    compute_tax:
         
         ; ==== Compute TAX (12%) ====
         mov eax, runningTotal
