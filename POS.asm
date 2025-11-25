@@ -55,7 +55,7 @@ include C:\masm32\include\masm32rt.inc
 
     qtyPrompt db "Enter Quantity: ", 0
     anotherMsg db "Add another item? (Y/N): ",0 
-    paymentMsg db "Payment Amount:   ₱",0
+    paymentMsg db 13,10,"Payment Amount:   ₱",0
 
                 
     ; ==== Receipt Messages ====
@@ -75,11 +75,11 @@ include C:\masm32\include\masm32rt.inc
     atText    db " @ ₱", 0
     equalText db " = ₱", 0
     colonText db ": ", 0
-    dashLine  db "--------------------------", 0
+    dashLine  db "--------------------------", 13,10, 0
     subText   db "Sub Total:        ₱",0        
     taxText   db "VAT (12%):        ₱",0
     totalText db "Total Amount:     ₱",0
-    dashLine2 db "===========================", 0
+    dashLine2 db "===========================", 13,10,0
     paidText  db "Amount Paid:      ₱",0
     changeText db "Change:           ₱",0  
 
@@ -322,11 +322,11 @@ include C:\masm32\include\masm32rt.inc
                 push offset receiptHdr
                 call StdOut
 
-                ; ==== Counter ====
-                mov ecx, 0
+        ; ==== Counter ====
+        mov esi, 0
 
     print_items:
-        cmp ecx, itemCount
+        cmp esi, itemCount
         jge print_totals
 
         ; ==== Print "Item " ====
@@ -334,7 +334,7 @@ include C:\masm32\include\masm32rt.inc
         call StdOut
         
         ; ==== Print Item Number ====
-        mov eax, ecx
+        mov eax, esi
         inc eax
         invoke StdOut, str$(eax)
         
@@ -343,7 +343,7 @@ include C:\masm32\include\masm32rt.inc
         call StdOut
 
         ; ==== Print Item Name ====
-        mov eax, receiptItems[ecx*4]
+        mov eax, receiptItems[esi*4]
         mov ebx, 10
         mul ebx
         lea ebx, itemNames
@@ -353,23 +353,23 @@ include C:\masm32\include\masm32rt.inc
         ; ==== Print Quantity Of the Item ====
         push offset priceText
         call StdOut
-        invoke StdOut, str$(receiptQtys[ecx*4])
+        invoke StdOut, str$(receiptQtys[esi*4])
         
         ; ==== Print Price Of the Item ====
         push offset atText
         call StdOut
-        mov eax, receiptItems[ecx*4]
+        mov eax, receiptItems[esi*4]
         mov ebx, priceTable[eax*4]
         invoke StdOut, str$(ebx)
 
         ; ==== Print Item Total ====
         push offset equalText
         call StdOut
-        invoke StdOut, str$(receiptTotals[ecx*4])
+        invoke StdOut, str$(receiptTotals[esi*4])
         invoke StdOut, chr$(13,10)
 
         ; ==== Increase count ====
-        inc ecx
+        inc esi
 
         ; ==== Loop back to print_items label ====
         jmp print_items
@@ -465,3 +465,8 @@ include C:\masm32\include\masm32rt.inc
         
 
     end start
+    ;TODO: CLS every new item
+    ; put Stocks on items
+    ; add item
+    ; dashboard
+    ; 
