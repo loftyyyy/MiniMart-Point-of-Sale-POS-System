@@ -410,7 +410,6 @@ include C:\masm32\include\masm32rt.inc
         call StdOut
         invoke StdOut, str$(finalTotal)
         invoke StdOut, chr$(13,10)
-
         
         ;==== Print Separator ==== 
         push offset dashLine2
@@ -432,8 +431,6 @@ include C:\masm32\include\masm32rt.inc
         push offset thankYouMsg
         call StdOut
         
-        
-        
         jmp exit_program
 
 
@@ -443,7 +440,6 @@ include C:\masm32\include\masm32rt.inc
 
         jmp read_item
         
-
     invalid_quantity_input:
         push offset invalidQuantityMsg
         call StdOut
@@ -474,7 +470,7 @@ include C:\masm32\include\masm32rt.inc
         
 
     end start
-    ;TODO: CLS every new item
+    ;TODO: CLS every new item - Done
     ; put Stocks on items
     ; add item
     ; dashboard
