@@ -18,6 +18,8 @@ include C:\masm32\include\masm32rt.inc
     localTime LPSYSTEMTIME <>
 
 
+    ;==== Inventory ASCII Art ====
+    inventoryArt db "", 13,10
 
 
     ; ==== Shopping Cart ASCII Art ==== 
