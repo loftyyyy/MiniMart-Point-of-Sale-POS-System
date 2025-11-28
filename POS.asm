@@ -27,6 +27,13 @@ include C:\masm32\include\masm32rt.inc
                   db "                               \/        \/          \/        \/         \/     \/              ",13,10,0
 
     ; ==== Minimart Option ====
+    minimartOption db "========= JJRC Minimart =========",13,10
+                   db "1. Inventory",13,10
+                   db "2. Summary", 13,10
+                   db "3. POS", 13,10, 0
+
+
+
     
 
     ; ==== Shopping Cart ASCII Art ==== 
