@@ -19,7 +19,7 @@ include C:\masm32\include\masm32rt.inc
 
 
     ;==== JJRC Minimart ASCII Art ====
-     jjrcMinimart db "         ____.    ____.___________________      _____  .__       .__                       __   ",13,10
+     jjrcMinimartArt db "         ____.    ____.___________________      _____  .__       .__                       __   ",13,10
                   db "        |    |   |    |\______   \_   ___ \    /     \ |__| ____ |__| _____ _____ ________/  |_ ",13,10
                   db "        |    |   |    | |       _/    \  \/   /  \ /  \|  |/    \|  |/     \\__  \\_  __ \   __\ ",13,10
                   db "    /\__|    /\__|    | |    |   \     \____ /    Y    \  |   |  \  |  Y Y  \/ __ \|  | \/|  |  ",13,10
@@ -128,6 +128,13 @@ include C:\masm32\include\masm32rt.inc
 
 
 .code
+
+    start_minimart: 
+        ; ==== Display JJRC Minimart Art ====;
+        push offset jjrcMinimartArt
+        call StdOut
+
+    end start_minimart
 
     start_pos:
 
