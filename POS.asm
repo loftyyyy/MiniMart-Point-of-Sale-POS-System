@@ -129,7 +129,7 @@ include C:\masm32\include\masm32rt.inc
 
 .code
 
-    start:
+    start_pos:
 
         mov runningTotal, 0
         mov itemCount, 0
@@ -476,7 +476,7 @@ include C:\masm32\include\masm32rt.inc
         invoke ExitProcess, 0
         
 
-    end start
+    end start_pos
     ;TODO: CLS every new item - Done
     ; put Stocks on items
     ; add item
