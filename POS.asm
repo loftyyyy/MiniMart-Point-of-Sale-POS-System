@@ -144,6 +144,10 @@ include C:\masm32\include\masm32rt.inc
         ; ==== Display JJRC Minimart Art ====;
         push offset jjrcMinimartArt
         call StdOut
+
+        ; ==== Display JJRC Menu ====
+        push offset minimartOption
+        call StdOut
         
         ; ==== Read and store user input ====
         push 32
