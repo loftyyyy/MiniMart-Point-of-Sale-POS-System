@@ -150,7 +150,7 @@ include C:\masm32\include\masm32rt.inc
             push offset minimartOption
             call StdOut
         
-        option_loop:
+        read_option:
         
             ; ==== Read and store user input ====
             push 32
@@ -179,12 +179,12 @@ include C:\masm32\include\masm32rt.inc
     invalid_selection_input_minimart:
         push offset invalidSelectionMsg
         call StdOut
-        jmp option_loop
+        jmp read_option
         
     invalid_type_input_minimart:
         push offset invalidTypeMsg
         call StdOut
-        jmp option_loop
+        jmp read_option
         
     end start_minimart
         
