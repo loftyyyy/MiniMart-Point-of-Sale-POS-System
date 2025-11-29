@@ -173,6 +173,10 @@ include C:\masm32\include\masm32rt.inc
             cmp eax, 3
             jg invalid_selection_input_minimart
 
+            cmp eax, 1
+            je start_inventory
+            cmp eax, 2
+            je start_summary
             cmp eax, 3
             je start_pos
              
@@ -185,7 +189,10 @@ include C:\masm32\include\masm32rt.inc
             push offset invalidTypeMsg
             call StdOut
             jmp read_option
-        
+
+    start_inventory:
+
+    start_summary:
 
     start_pos:
 
