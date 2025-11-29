@@ -7,12 +7,14 @@ include C:\masm32\include\masm32rt.inc
 
     ;Current Time and Date 
     LPSYSTEMTIME STRUCT
-        wYear   WORD ?
-        wMonth  WORD ?
-        wDay    WORD ?
-        wHour   WORD ?
-        wMinute WORD ?
-        wSecond WORD ?
+        wYear        WORD ?
+        wMonth       WORD ?
+        wDayOfWeek   WORD ?
+        wDay         WORD ?
+        wHour        WORD ?
+        wMinute      WORD ?
+        wSecond      WORD ?
+        wMilliseconds WORD ?
     LPSYSTEMTIME ENDS
 
     localTime LPSYSTEMTIME <>
@@ -437,11 +439,19 @@ include C:\masm32\include\masm32rt.inc
                     mov eax, 12
                     mov edx, 0          ; AM
                 time_format:
+                    ; Save converted hour and minute before calculating buffer position
+                    push eax             ; Save converted hour (12-hour format)
+                    push ebx             ; Save minute
+                    
                     ; Get current length of dateTimeBuf and append time
                     push offset dateTimeBuf
                     call lstrlen
                     mov esi, offset dateTimeBuf
                     add esi, eax
+                    
+                    ; Restore hour and minute values
+                    pop ebx              ; minute
+                    pop eax              ; converted hour (12-hour format)
                     
                     ; Format and append time
                     cmp edx, 0
