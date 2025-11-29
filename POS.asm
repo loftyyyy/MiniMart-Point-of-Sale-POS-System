@@ -116,6 +116,7 @@ include C:\masm32\include\masm32rt.inc
     ; ==== Buffers ====
     inputBuf        db 32 dup(0)
     itemIdx         DWORD ?
+    optionIdx       DWORD ?
     price           DWORD ?
     quantity        DWORD ?
     itemTotal       DWORD ?
@@ -144,8 +145,25 @@ include C:\masm32\include\masm32rt.inc
         push offset jjrcMinimartArt
         call StdOut
         
-        ; ==== Read user input ====
-        push 
+        ; ==== Read and store user input ====
+        push 32
+        push offset inputBuf
+        call StdIn
+
+        ; ==== Check if input is empty ====
+        cmp byte ptr [inputBuf], 0
+        je invalid_selection_input
+
+        ; ==== Convert input to int ====
+        push offset inputBuf
+        call atodw ; converts string to int
+        jc invalid_type_input ; Jumps if input is not a number
+        mov itemIdx, eax
+
+        
+        
+        
+        
 
     end start_minimart
 
