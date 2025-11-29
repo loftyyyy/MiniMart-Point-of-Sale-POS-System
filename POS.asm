@@ -427,17 +427,17 @@ include C:\masm32\include\masm32rt.inc
                     jl time_am_check
                     je time_noon
                     sub eax, 12
-                    mov edx, 1          ; PM
+                    mov edx, 1          ; PM (hours 13-23 are afternoon/evening)
                     jmp time_format
                 time_noon:
                     mov eax, 12
-                    mov edx, 1          ; PM
+                    mov edx, 1          ; PM (12:00 is noon)
                     jmp time_format
                 time_am_check:
                     cmp eax, 0
                     jne time_format
                     mov eax, 12
-                    mov edx, 0          ; AM
+                    mov edx, 0          ; AM (0:00 is midnight)
                 time_format:
                     ; Save converted hour and minute before calculating buffer position
                     push eax             ; Save converted hour (12-hour format)
