@@ -146,31 +146,32 @@ include C:\masm32\include\masm32rt.inc
         call StdOut
         
         option_loop:
-
-        ; ==== Display JJRC Menu ====
-        push offset minimartOption
-        call StdOut
+            ; ==== Display JJRC Menu ====
+            push offset minimartOption
+            call StdOut
         
-        ; ==== Read and store user input ====
-        push 32
-        push offset inputBuf
-        call StdIn
-
-        ; ==== Check if input is empty ====
-        cmp byte ptr [inputBuf], 0
-        je invalid_selection_input_minimart
-
-        ; ==== Convert input to int ====
-        push offset inputBuf
-        call atodw ; converts string to int
-        jc invalid_type_input_minimart ; Jumps if input is not a number
-        mov optionIdx, eax
+        option_loop:
         
-        ; ==== Validate input (1-3) ====
-        cmp eax, 1
-        jl invalid_selection_input_minimart
-        cmp eax, 3
-        jg invalid_selection_input_minimart
+            ; ==== Read and store user input ====
+            push 32
+            push offset inputBuf
+            call StdIn
+
+            ; ==== Check if input is empty ====
+            cmp byte ptr [inputBuf], 0
+            je invalid_selection_input_minimart
+
+            ; ==== Convert input to int ====
+            push offset inputBuf
+            call atodw ; converts string to int
+            jc invalid_type_input_minimart ; Jumps if input is not a number
+            mov optionIdx, eax
+            
+            ; ==== Validate input (1-3) ====
+            cmp eax, 1
+            jl invalid_selection_input_minimart
+            cmp eax, 3
+            jg invalid_selection_input_minimart
 
         
         
