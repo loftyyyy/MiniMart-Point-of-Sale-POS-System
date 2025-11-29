@@ -173,7 +173,13 @@ include C:\masm32\include\masm32rt.inc
             cmp eax, 3
             jg invalid_selection_input_minimart
 
+            cmp eax, 3
+            je start_pos
+            
         
+            
+
+            
         
         
     invalid_selection_input_minimart:
@@ -185,8 +191,6 @@ include C:\masm32\include\masm32rt.inc
         push offset invalidTypeMsg
         call StdOut
         jmp read_option
-        
-    end start_minimart
         
 
     start_pos:
@@ -536,7 +540,7 @@ include C:\masm32\include\masm32rt.inc
         invoke ExitProcess, 0
         
 
-    end start_pos
+    end start_minimart
     ;TODO: CLS every new item - Done
     ; put Stocks on items
     ; add item
