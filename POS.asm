@@ -29,8 +29,8 @@ include C:\masm32\include\masm32rt.inc
     ; ==== Minimart Option ====
     minimartOption db "========= JJRC Minimart =========",13,10
                    db "1. Inventory",13,10
-                   db "2. Summary", 13,10
-                   db "3. POS", 13,10,
+                   db "2. Summary",13,10
+                   db "3. POS", 13,10, 13,10
                    db "Selection [1-3]: ", 0
 
 
@@ -152,26 +152,35 @@ include C:\masm32\include\masm32rt.inc
 
         ; ==== Check if input is empty ====
         cmp byte ptr [inputBuf], 0
-        je invalid_selection_input
+        je invalid_selection_input_minimart
 
         ; ==== Convert input to int ====
         push offset inputBuf
         call atodw ; converts string to int
-        jc invalid_type_input ; Jumps if input is not a number
+        jc invalid_type_input_minimart ; Jumps if input is not a number
         mov optionIdx, eax
         
         ; ==== Validate input (1-3) ====
         cmp eax, 1
-        jl invalid_selection_input
+        jl invalid_selection_input_minimart
         cmp eax, 3
-        jg invalid_selection_input
+        jg invalid_selection_input_minimart
 
         
         
         
+    invalid_selection_input_minimart:
+        push offset invalidSelectionMsg
+        call StdOut
+        jmp start_minimart
         
-
+    invalid_type_input_minimart:
+        push offset invalidTypeMsg
+        call StdOut
+        jmp start_minimart
+        
     end start_minimart
+        
 
     start_pos:
 
