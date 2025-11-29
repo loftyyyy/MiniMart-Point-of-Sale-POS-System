@@ -175,22 +175,16 @@ include C:\masm32\include\masm32rt.inc
 
             cmp eax, 3
             je start_pos
+             
+        invalid_selection_input_minimart:
+            push offset invalidSelectionMsg
+            call StdOut
+            jmp read_option
             
-        
-            
-
-            
-        
-        
-    invalid_selection_input_minimart:
-        push offset invalidSelectionMsg
-        call StdOut
-        jmp read_option
-        
-    invalid_type_input_minimart:
-        push offset invalidTypeMsg
-        call StdOut
-        jmp read_option
+        invalid_type_input_minimart:
+            push offset invalidTypeMsg
+            call StdOut
+            jmp read_option
         
 
     start_pos:
@@ -202,343 +196,343 @@ include C:\masm32\include\masm32rt.inc
         push offset shoppingCartArt
         call StdOut
         
-    item_loop:
-        
-        ; ==== Display Menu ====;
-        push offset textMenu
-        call StdOut
-
-    read_item: 
-        ; ===== Read and Store item number =====
-        push 32
-        push offset inputBuf
-        call StdIn 
-        
-        ; ==== Check if input is empty ====
-        cmp byte ptr [inputBuf], 0
-        je invalid_selection_input
-
-        ; ==== Convert input to int ====
-        push offset inputBuf
-        call atodw ; converts string to int
-        jc invalid_type_input ; Jumps if input is not a number
-        mov itemIdx, eax
- 
-        ; ===== Validate input (1-10) =====
-        cmp eax, 1
-        jl invalid_selection_input
-        cmp eax, 10
-        jg invalid_selection_input
-
-        ; ==== Convert user selection to 0 based index ====
-        dec eax
-        mov itemIdx, eax
-
-        ; ==== Fetch Price based on user selection ====
-        mov ebx, itemIdx
-        mov eax, priceTable[ebx*4]
-        mov price, eax
-        
-    ; ==== Ask for item quantity and store it ====
-    read_quantity:
-        push offset qtyPrompt
-        call StdOut
-        
-        push 32
-        push offset inputBuf
-        call StdIn
-        
-        ; ==== Check if input is empty ====
-        cmp byte ptr [inputBuf], 0
-        je invalid_quantity_input
-        
-        ; ==== Validate that input contains only digits ====
-        mov esi, offset inputBuf
-        validate_digit_loop:
-            mov al, [esi]
-            cmp al, 0                    ; End of string?
-            je digits_valid
-            cmp al, 13                   ; Carriage return?
-            je digits_valid
-            cmp al, 10                   ; Line feed?
-            je digits_valid
-            cmp al, '0'                  ; Less than '0'?
-            jb invalid_quantity_input
-            cmp al, '9'                  ; Greater than '9'?
-            ja invalid_quantity_input
-            inc esi
-            jmp validate_digit_loop
-        
-    digits_valid:
-        ; ==== Convert input to integer ====
-        push offset inputBuf
-        call atodw
-        jc invalid_quantity_input
-        
-        ; ==== Check if quantity is less than or equal to 0. That means its a negative number ====
-        cmp eax, 0
-        jle invalid_quantity_input
-        
-        mov quantity, eax
-
-        ; ==== Compute item subtotal ====
-        mov eax, price
-        mov ebx, quantity
-        mul ebx
-        mov itemTotal, eax
-
-        ; ==== Add to running total ====
-        mov eax, runningTotal
-        add eax, itemTotal
-        mov runningTotal, eax
-
-        ; ==== Store item details for receipt ====
-        mov eax, itemCount
-        mov ebx, itemIdx
-        mov receiptItems[eax*4],ebx
-        mov ebx, quantity
-        mov receiptQtys[eax*4],ebx
-        mov ebx, itemTotal
-        mov receiptTotals[eax*4],ebx
-        
-        ;==== Increase Item Count ====
-        inc itemCount
-        
-        ; ==== Ask if user wants another item ====
-        push offset anotherMsg
-        call StdOut
-
-        push 32
-        push offset inputBuf
-        call StdIn
-
-        mov al, byte ptr [inputBuf]
-        cmp al, 'Y'
-        jne check_lowercase
-        invoke crt_system, addr clsCmd
-        jmp item_loop
-
-    check_lowercase:
-        cmp al, 'y'
-        jne compute_tax
-        invoke crt_system, addr clsCmd
-        jmp item_loop
-
-    compute_tax:
-        
-        ; ==== Compute TAX (12%) ====
-        mov eax, runningTotal
-        mov ebx, 12
-        mul ebx
-        mov ebx, 100
-        xor edx, edx
-        div ebx
-        mov tax, eax
-
-        ; ==== Compute FINAL TOTAL ====
-        mov eax, runningTotal
-        add eax, tax
-        mov finalTotal, eax
-
-        ; ==== Display total before payment ====
-        invoke StdOut, chr$(13,10)
-        invoke StdOut, addr totalText
-        invoke StdOut, str$(finalTotal)
-        invoke StdOut, chr$(13,10)
-        
-        payment_loop:
+        item_loop:
             
-            ; ==== Ask for payment ====
-            push offset paymentMsg
+            ; ==== Display Menu ====;
+            push offset textMenu
+            call StdOut
+
+        read_item: 
+            ; ===== Read and Store item number =====
+            push 32
+            push offset inputBuf
+            call StdIn 
+            
+            ; ==== Check if input is empty ====
+            cmp byte ptr [inputBuf], 0
+            je invalid_selection_input
+
+            ; ==== Convert input to int ====
+            push offset inputBuf
+            call atodw ; converts string to int
+            jc invalid_type_input ; Jumps if input is not a number
+            mov itemIdx, eax
+     
+            ; ===== Validate input (1-10) =====
+            cmp eax, 1
+            jl invalid_selection_input
+            cmp eax, 10
+            jg invalid_selection_input
+
+            ; ==== Convert user selection to 0 based index ====
+            dec eax
+            mov itemIdx, eax
+
+            ; ==== Fetch Price based on user selection ====
+            mov ebx, itemIdx
+            mov eax, priceTable[ebx*4]
+            mov price, eax
+            
+        ; ==== Ask for item quantity and store it ====
+        read_quantity:
+            push offset qtyPrompt
             call StdOut
             
             push 32
             push offset inputBuf
             call StdIn
             
-            ; ==== Input validation ====
+            ; ==== Check if input is empty ====
             cmp byte ptr [inputBuf], 0
-            je invalid_payment_input
-
-            cmp byte ptr [inputBuf], '-'
-            je invalid_payment_input
-        
-            ; ==== Validate that payment input contains only digits ====
+            je invalid_quantity_input
+            
+            ; ==== Validate that input contains only digits ====
             mov esi, offset inputBuf
-            validate_payment_loop:
+            validate_digit_loop:
                 mov al, [esi]
                 cmp al, 0                    ; End of string?
-                je valid_payment
+                je digits_valid
                 cmp al, 13                   ; Carriage return?
-                je valid_payment
+                je digits_valid
                 cmp al, 10                   ; Line feed?
-                je valid_payment
+                je digits_valid
                 cmp al, '0'                  ; Less than '0'?
-                jb invalid_payment_input
+                jb invalid_quantity_input
                 cmp al, '9'                  ; Greater than '9'?
-                ja invalid_payment_input
+                ja invalid_quantity_input
                 inc esi
-                jmp validate_payment_loop
-
-            valid_payment:
-                                
-                push offset inputBuf
-                call atodw
-                mov payment, eax
-
-                ; ==== Checks if payment is less than or equal to 0 ====
-                cmp eax, 0
-                jle invalid_payment_input
-
-                ; ==== Checks if payment amount is less than total amount ====
-                cmp eax, finalTotal
-                jl insufficient_payment
+                jmp validate_digit_loop
             
-                ; ==== Calculate Change ====
-                sub eax, finalTotal
-                mov change, eax
+        digits_valid:
+            ; ==== Convert input to integer ====
+            push offset inputBuf
+            call atodw
+            jc invalid_quantity_input
+            
+            ; ==== Check if quantity is less than or equal to 0. That means its a negative number ====
+            cmp eax, 0
+            jle invalid_quantity_input
+            
+            mov quantity, eax
+
+            ; ==== Compute item subtotal ====
+            mov eax, price
+            mov ebx, quantity
+            mul ebx
+            mov itemTotal, eax
+
+            ; ==== Add to running total ====
+            mov eax, runningTotal
+            add eax, itemTotal
+            mov runningTotal, eax
+
+            ; ==== Store item details for receipt ====
+            mov eax, itemCount
+            mov ebx, itemIdx
+            mov receiptItems[eax*4],ebx
+            mov ebx, quantity
+            mov receiptQtys[eax*4],ebx
+            mov ebx, itemTotal
+            mov receiptTotals[eax*4],ebx
+            
+            ;==== Increase Item Count ====
+            inc itemCount
+            
+            ; ==== Ask if user wants another item ====
+            push offset anotherMsg
+            call StdOut
+
+            push 32
+            push offset inputBuf
+            call StdIn
+
+            mov al, byte ptr [inputBuf]
+            cmp al, 'Y'
+            jne check_lowercase
+            invoke crt_system, addr clsCmd
+            jmp item_loop
+
+        check_lowercase:
+            cmp al, 'y'
+            jne compute_tax
+            invoke crt_system, addr clsCmd
+            jmp item_loop
+
+        compute_tax:
+            
+            ; ==== Compute TAX (12%) ====
+            mov eax, runningTotal
+            mov ebx, 12
+            mul ebx
+            mov ebx, 100
+            xor edx, edx
+            div ebx
+            mov tax, eax
+
+            ; ==== Compute FINAL TOTAL ====
+            mov eax, runningTotal
+            add eax, tax
+            mov finalTotal, eax
+
+            ; ==== Display total before payment ====
+            invoke StdOut, chr$(13,10)
+            invoke StdOut, addr totalText
+            invoke StdOut, str$(finalTotal)
+            invoke StdOut, chr$(13,10)
+            
+            payment_loop:
                 
-                ; ==== Print Receipt ==== 
-                push offset receiptHdr
+                ; ==== Ask for payment ====
+                push offset paymentMsg
                 call StdOut
+                
+                push 32
+                push offset inputBuf
+                call StdIn
+                
+                ; ==== Input validation ====
+                cmp byte ptr [inputBuf], 0
+                je invalid_payment_input
 
-        ; ==== Counter ====
-        mov esi, 0
+                cmp byte ptr [inputBuf], '-'
+                je invalid_payment_input
+            
+                ; ==== Validate that payment input contains only digits ====
+                mov esi, offset inputBuf
+                validate_payment_loop:
+                    mov al, [esi]
+                    cmp al, 0                    ; End of string?
+                    je valid_payment
+                    cmp al, 13                   ; Carriage return?
+                    je valid_payment
+                    cmp al, 10                   ; Line feed?
+                    je valid_payment
+                    cmp al, '0'                  ; Less than '0'?
+                    jb invalid_payment_input
+                    cmp al, '9'                  ; Greater than '9'?
+                    ja invalid_payment_input
+                    inc esi
+                    jmp validate_payment_loop
 
-    print_items:
-        cmp esi, itemCount
-        jge print_totals
+                valid_payment:
+                                    
+                    push offset inputBuf
+                    call atodw
+                    mov payment, eax
 
-        ; ==== Print "Item " ====
-        push offset itemText
-        call StdOut
+                    ; ==== Checks if payment is less than or equal to 0 ====
+                    cmp eax, 0
+                    jle invalid_payment_input
+
+                    ; ==== Checks if payment amount is less than total amount ====
+                    cmp eax, finalTotal
+                    jl insufficient_payment
+                
+                    ; ==== Calculate Change ====
+                    sub eax, finalTotal
+                    mov change, eax
+                    
+                    ; ==== Print Receipt ==== 
+                    push offset receiptHdr
+                    call StdOut
+
+            ; ==== Counter ====
+            mov esi, 0
+
+        print_items:
+            cmp esi, itemCount
+            jge print_totals
+
+            ; ==== Print "Item " ====
+            push offset itemText
+            call StdOut
+            
+            ; ==== Print Item Number ====
+            mov eax, esi
+            inc eax
+            invoke StdOut, str$(eax)
+            
+            ; ==== Print ": " ====
+            push offset colonText
+            call StdOut
+
+            ; ==== Print Item Name ====
+            mov eax, receiptItems[esi*4]
+            mov ebx, 10
+            mul ebx
+            lea ebx, itemNames
+            add ebx, eax
+            invoke StdOut, ebx
+            
+            ; ==== Print Quantity Of the Item ====
+            push offset priceText
+            call StdOut
+            invoke StdOut, str$(receiptQtys[esi*4])
+            
+            ; ==== Print Price Of the Item ====
+            push offset atText
+            call StdOut
+            mov eax, receiptItems[esi*4]
+            mov ebx, priceTable[eax*4]
+            invoke StdOut, str$(ebx)
+
+            ; ==== Print Item Total ====
+            push offset equalText
+            call StdOut
+            invoke StdOut, str$(receiptTotals[esi*4])
+            invoke StdOut, chr$(13,10)
+
+            ; ==== Increase count ====
+            inc esi
+
+            ; ==== Loop back to print_items label ====
+            jmp print_items
+
+
+        print_totals:
+            ;==== Print Separator ==== 
+            push offset dashLine
+            call StdOut
+
+            ; ==== Print Subtotal ====
+            push offset subText
+            call StdOut
+            invoke StdOut, str$(runningTotal)
+            invoke StdOut, chr$(13,10)
+
+            ; ==== Print Tax Amount ====
+            push offset taxText
+            call StdOut
+            invoke StdOut, str$(tax)
+            invoke StdOut, chr$(13,10)
+            
+            ;==== Print Separator ==== 
+            push offset dashLine
+            call StdOut
+            
+            ; ==== Print Final Total ====
+            push offset totalText
+            call StdOut
+            invoke StdOut, str$(finalTotal)
+            invoke StdOut, chr$(13,10)
+            
+            ;==== Print Separator ==== 
+            push offset dashLine2
+            call StdOut
+            
+
+            ; ==== Print Payment Details ====
+            push offset paidText
+            call StdOut
+            invoke StdOut, str$(payment)
+            invoke StdOut, chr$(13,10)
+            
+            push offset changeText
+            call StdOut
+            invoke StdOut, str$(change)
+            invoke StdOut, chr$(13,10)
+            
+            ; ==== Print Thank you message ====
+            push offset thankYouMsg
+            call StdOut
+            
+            jmp exit_program
+
+
+        invalid_selection_input:
+            push offset invalidSelectionMsg
+            call StdOut
+
+            jmp read_item
+            
+        invalid_quantity_input:
+            push offset invalidQuantityMsg
+            call StdOut
+
+            jmp read_quantity
+
+        invalid_type_input:
+            push offset invalidTypeMsg
+            call StdOut
+
+            jmp read_item
+
+        invalid_payment_input:
+            push offset invalidPay
+            call StdOut
+            
+            jmp payment_loop
         
-        ; ==== Print Item Number ====
-        mov eax, esi
-        inc eax
-        invoke StdOut, str$(eax)
-        
-        ; ==== Print ": " ====
-        push offset colonText
-        call StdOut
+        insufficient_payment:
+            push offset insuffMsg
+            call StdOut
+            invoke StdOut, str$(finalTotal)
+            
+            jmp payment_loop
 
-        ; ==== Print Item Name ====
-        mov eax, receiptItems[esi*4]
-        mov ebx, 10
-        mul ebx
-        lea ebx, itemNames
-        add ebx, eax
-        invoke StdOut, ebx
-        
-        ; ==== Print Quantity Of the Item ====
-        push offset priceText
-        call StdOut
-        invoke StdOut, str$(receiptQtys[esi*4])
-        
-        ; ==== Print Price Of the Item ====
-        push offset atText
-        call StdOut
-        mov eax, receiptItems[esi*4]
-        mov ebx, priceTable[eax*4]
-        invoke StdOut, str$(ebx)
-
-        ; ==== Print Item Total ====
-        push offset equalText
-        call StdOut
-        invoke StdOut, str$(receiptTotals[esi*4])
-        invoke StdOut, chr$(13,10)
-
-        ; ==== Increase count ====
-        inc esi
-
-        ; ==== Loop back to print_items label ====
-        jmp print_items
-
-
-    print_totals:
-        ;==== Print Separator ==== 
-        push offset dashLine
-        call StdOut
-
-        ; ==== Print Subtotal ====
-        push offset subText
-        call StdOut
-        invoke StdOut, str$(runningTotal)
-        invoke StdOut, chr$(13,10)
-
-        ; ==== Print Tax Amount ====
-        push offset taxText
-        call StdOut
-        invoke StdOut, str$(tax)
-        invoke StdOut, chr$(13,10)
-        
-        ;==== Print Separator ==== 
-        push offset dashLine
-        call StdOut
-        
-        ; ==== Print Final Total ====
-        push offset totalText
-        call StdOut
-        invoke StdOut, str$(finalTotal)
-        invoke StdOut, chr$(13,10)
-        
-        ;==== Print Separator ==== 
-        push offset dashLine2
-        call StdOut
-        
-
-        ; ==== Print Payment Details ====
-        push offset paidText
-        call StdOut
-        invoke StdOut, str$(payment)
-        invoke StdOut, chr$(13,10)
-        
-        push offset changeText
-        call StdOut
-        invoke StdOut, str$(change)
-        invoke StdOut, chr$(13,10)
-        
-        ; ==== Print Thank you message ====
-        push offset thankYouMsg
-        call StdOut
-        
-        jmp exit_program
-
-
-    invalid_selection_input:
-        push offset invalidSelectionMsg
-        call StdOut
-
-        jmp read_item
-        
-    invalid_quantity_input:
-        push offset invalidQuantityMsg
-        call StdOut
-
-        jmp read_quantity
-
-    invalid_type_input:
-        push offset invalidTypeMsg
-        call StdOut
-
-        jmp read_item
-
-    invalid_payment_input:
-        push offset invalidPay
-        call StdOut
-        
-        jmp payment_loop
-    
-    insufficient_payment:
-        push offset insuffMsg
-        call StdOut
-        invoke StdOut, str$(finalTotal)
-        
-        jmp payment_loop
-
-    exit_program:
-        invoke ExitProcess, 0
-        
+        exit_program:
+            invoke ExitProcess, 0
+            
 
     end start_minimart
     ;TODO: CLS every new item - Done
