@@ -30,7 +30,8 @@ include C:\masm32\include\masm32rt.inc
     minimartOption db "========= JJRC Minimart =========",13,10
                    db "1. Inventory",13,10
                    db "2. Summary", 13,10
-                   db "3. POS", 13,10, 0
+                   db "3. POS", 13,10,
+                   db "Selection [1-3]: ", 0
 
 
 
@@ -131,7 +132,7 @@ include C:\masm32\include\masm32rt.inc
     receiptTotals   DWORD 10 dup(0)
 
 
-    ; other stuff
+    ; some command for the clear screen
     clsCmd db "cls", 0
 
 
@@ -142,6 +143,9 @@ include C:\masm32\include\masm32rt.inc
         ; ==== Display JJRC Minimart Art ====;
         push offset jjrcMinimartArt
         call StdOut
+        
+        ; ==== Read user input ====
+        push 
 
     end start_minimart
 
