@@ -77,6 +77,9 @@ include C:\masm32\include\masm32rt.inc
                 
     ; ==== Receipt Messages ====
     receiptHdr db 13,10, "========= RECEIPT =========",13,10,0
+    dateText db "Date: ",0
+    timeText db "   Time: ",0
+    dateTimeBuf db 32 dup(0)
     itemText db "Item ",0
     itemNames db "Coffee", 0,0,0,0     ; 6 chars + 4 nulls = 10 bytes (Index 0)
               db "Donut", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 1)
@@ -403,6 +406,60 @@ include C:\masm32\include\masm32rt.inc
                     push offset receiptHdr
                     call StdOut
 
+                    ; ==== Get and Display Date/Time ====
+                    invoke GetLocalTime, addr localTime
+                    
+                    ; ==== Format Date: YYYY-MM-DD ====
+                    movzx eax, localTime.wYear
+                    movzx ebx, localTime.wMonth
+                    movzx ecx, localTime.wDay
+                    invoke wsprintf, addr dateTimeBuf, chr$("Date: %04d-%02d-%02d"), eax, ebx, ecx
+                    
+                    ; ==== Format Time: HH:MM AM/PM ====
+                    ; Convert hour to 12-hour format and determine AM/PM
+                    movzx eax, localTime.wHour
+                    movzx ebx, localTime.wMinute
+                    mov edx, 0           ; 0 = AM, 1 = PM
+                    
+                    cmp eax, 12
+                    jl time_am_check
+                    je time_noon
+                    sub eax, 12
+                    mov edx, 1          ; PM
+                    jmp time_format
+                time_noon:
+                    mov eax, 12
+                    mov edx, 1          ; PM
+                    jmp time_format
+                time_am_check:
+                    cmp eax, 0
+                    jne time_format
+                    mov eax, 12
+                    mov edx, 0          ; AM
+                time_format:
+                    ; Get current length of dateTimeBuf and append time
+                    push offset dateTimeBuf
+                    call lstrlen
+                    mov esi, offset dateTimeBuf
+                    add esi, eax
+                    
+                    ; Format and append time
+                    cmp edx, 0
+                    je append_am
+                    invoke wsprintf, esi, chr$("   Time: %02d:%02d PM"), eax, ebx
+                    jmp time_done
+                append_am:
+                    invoke wsprintf, esi, chr$("   Time: %02d:%02d AM"), eax, ebx
+                time_done:
+                    ; ==== Print Date/Time ====
+                    push offset dateTimeBuf
+                    call StdOut
+                    invoke StdOut, chr$(13,10)
+                    
+                    ; ==== Print Dash Line ====
+                    push offset dashLine
+                    call StdOut
+
             ; ==== Counter ====
             mov esi, 0
 
@@ -546,3 +603,4 @@ include C:\masm32\include\masm32rt.inc
     ; put Stocks on items
     ; add item
     ; dashboard
+    ; add a create file for each receipt
