@@ -158,7 +158,13 @@ include C:\masm32\include\masm32rt.inc
         push offset inputBuf
         call atodw ; converts string to int
         jc invalid_type_input ; Jumps if input is not a number
-        mov itemIdx, eax
+        mov optionIdx, eax
+        
+        ; ==== Validate input (1-3) ====
+        cmp eax, 1
+        jl invalid_selection_input
+        cmp eax, 3
+        jg invalid_selection_input
 
         
         
@@ -198,7 +204,7 @@ include C:\masm32\include\masm32rt.inc
         jc invalid_type_input ; Jumps if input is not a number
         mov itemIdx, eax
  
-        ; ===== Validate input (1-3) =====
+        ; ===== Validate input (1-10) =====
         cmp eax, 1
         jl invalid_selection_input
         cmp eax, 10
