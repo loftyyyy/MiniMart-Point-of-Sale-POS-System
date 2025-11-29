@@ -144,6 +144,8 @@ include C:\masm32\include\masm32rt.inc
         ; ==== Display JJRC Minimart Art ====;
         push offset jjrcMinimartArt
         call StdOut
+        
+        option_loop:
 
         ; ==== Display JJRC Menu ====
         push offset minimartOption
@@ -176,12 +178,12 @@ include C:\masm32\include\masm32rt.inc
     invalid_selection_input_minimart:
         push offset invalidSelectionMsg
         call StdOut
-        jmp start_minimart
+        jmp option_loop
         
     invalid_type_input_minimart:
         push offset invalidTypeMsg
         call StdOut
-        jmp start_minimart
+        jmp option_loop
         
     end start_minimart
         
