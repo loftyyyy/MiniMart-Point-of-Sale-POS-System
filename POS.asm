@@ -36,6 +36,12 @@ include C:\masm32\include\masm32rt.inc
                    db "Selection [1-3]: ", 0
 
 
+    ; ==== Stock Messages ====
+    outOfStockMsg db "Sorry, this item is out of stock!", 13,10,0
+    insufficientStockMsg db "Insufficient stock! Only ",0
+    availableMsg db " available", 13, 10, 0
+    stockPrompt db " (Stock: ",0
+    closeParen db ")", 0
 
     
 
