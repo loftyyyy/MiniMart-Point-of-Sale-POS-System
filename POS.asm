@@ -133,6 +133,7 @@ include C:\masm32\include\masm32rt.inc
     itemIdx         DWORD ?
     optionIdx       DWORD ?
     price           DWORD ?
+    stock           DWORD ?
     quantity        DWORD ?
     itemTotal       DWORD ?
     runningTotal    DWORD 0
@@ -257,6 +258,15 @@ include C:\masm32\include\masm32rt.inc
 
             ; ==== Check if item is in stock ====
             ; TODO: To be implemented
+            mov ebx, itemIdx
+            mov eax, stockTable[ebx*4]
+
+            cmp eax, 0
+            je out_of_stock_error
+            
+            mov stock, eax
+            
+
             
         ; ==== Ask for item quantity and store it ====
         read_quantity:
@@ -298,6 +308,13 @@ include C:\masm32\include\masm32rt.inc
             cmp eax, 0
             jle invalid_quantity_input
             
+            ; ==== Check if requested quantity exceeds available stock ====
+            mov ebx, itemIdx
+            mov ecx, stockTable[ebx*4] ; Gets current stock
+            cmp eax, ecx
+            jg insufficient_stock_error
+            
+
             mov quantity, eax
 
             ; ==== Compute item subtotal ====
@@ -591,6 +608,11 @@ include C:\masm32\include\masm32rt.inc
 
             jmp item_loop
 
+        insufficient_stock_error:
+            push offset insufficientStockMsg
+            call StdOut
+
+            
 
         invalid_selection_input:
             push offset invalidSelectionMsg
