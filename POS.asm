@@ -81,7 +81,7 @@ include C:\masm32\include\masm32rt.inc
     receiptHdr db 13,10, "========= RECEIPT =========",13,10,0
     dateText db "Date: ",0
     timeText db "   Time: ",0
-    dateTimeBuf db 32 dup(0)
+    dateTimeBuf db 64 dup(0)
     itemText db "Item ",0
     itemNames db "Coffee", 0,0,0,0     ; 6 chars + 4 nulls = 10 bytes (Index 0)
               db "Donut", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 1)
