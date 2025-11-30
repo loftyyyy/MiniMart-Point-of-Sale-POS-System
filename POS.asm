@@ -612,6 +612,13 @@ include C:\masm32\include\masm32rt.inc
             push offset insufficientStockMsg
             call StdOut
 
+            mov ebx, stock
+            invoke StdOut, str$(stock)
+            
+            push offset availableMsg
+            call StdOut
+            
+            jmp read_quantity
             
 
         invalid_selection_input:
