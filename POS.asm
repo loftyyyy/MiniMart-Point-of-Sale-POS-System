@@ -43,6 +43,7 @@ include C:\masm32\include\masm32rt.inc
     stockPrompt db " (Stock: ",0
     closeParen db ")", 0
 
+
     
 
     ; ==== Shopping Cart ASCII Art ==== 
@@ -123,6 +124,9 @@ include C:\masm32\include\masm32rt.inc
 
     ; ==== Prices ====
     priceTable DWORD 39, 12, 15, 50, 25, 30, 20, 15, 5, 8
+
+    ; ==== Stock ====
+    stockTable DWORD 10, 10, 10, 10, 10, 10, 10, 10, 10, 10
 
     ; ==== Buffers ====
     inputBuf        db 32 dup(0)
@@ -250,6 +254,9 @@ include C:\masm32\include\masm32rt.inc
             mov ebx, itemIdx
             mov eax, priceTable[ebx*4]
             mov price, eax
+
+            ; ==== Check if item is in stock ====
+            ; TODO: To be implemented
             
         ; ==== Ask for item quantity and store it ====
         read_quantity:
@@ -577,6 +584,12 @@ include C:\masm32\include\masm32rt.inc
             call StdOut
             
             jmp exit_program
+
+        out_of_stock_error:
+            push offset outOfStockMsg
+            call StdIn
+
+            jmp item_loop
 
 
         invalid_selection_input:
