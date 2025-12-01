@@ -339,6 +339,13 @@ include C:\masm32\include\masm32rt.inc
             
             ;==== Increase Item Count ====
             inc itemCount
+
+            ; ==== Decrease Stock ====
+            mov eax, itemIdx
+            mov ebx, quantity
+            mov ecx, stockTable[eax*4]
+            sub ecx, ebx
+            mov stockTable[eax*40, ecx
             
             ; ==== Ask if user wants another item ====
             push offset anotherMsg
