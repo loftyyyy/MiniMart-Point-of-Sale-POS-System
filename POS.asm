@@ -36,14 +36,12 @@ include C:\masm32\include\masm32rt.inc
                    db "Selection [1-3]: ", 0
 
 
-    ; ==== Stock Messages ====
-    outOfStockMsg db "Sorry, this item is out of stock!", 13,10,0
-    insufficientStockMsg db "Insufficient stock! Only ",0
-    availableMsg db " available", 13, 10, 0
-    stockPrompt db " (Stock: ",0
-    closeParen db ")", 0
 
-
+    ; ==== Inventory Option ====
+    inventoryOption db 13,10,"=========  Inventory ========= ", 13,10
+                    db "1. Add new Item",13,10
+                    db "2. Update Stock",13,10
+                    db "3. Show Items with Stock",13,10
     
 
     ; ==== Shopping Cart ASCII Art ==== 
@@ -120,6 +118,13 @@ include C:\masm32\include\masm32rt.inc
     invalidTypeMsg db "Please input a number!", 13,10, 0
     invalidPay db "Invalid payment! Please enter a valid amount", 13, 10, 0
 
+
+    ; ==== Stock Messages ====
+    outOfStockMsg db "Sorry, this item is out of stock!", 13,10,0
+    insufficientStockMsg db "Insufficient stock! Only ",0
+    availableMsg db " available", 13, 10, 0
+    stockPrompt db " (Stock: ",0
+    closeParen db ")", 0
 
 
     ; ==== Prices ====
@@ -207,6 +212,7 @@ include C:\masm32\include\masm32rt.inc
             jmp read_option
 
     start_inventory:
+
 
     start_summary:
 
@@ -345,7 +351,7 @@ include C:\masm32\include\masm32rt.inc
             mov ebx, quantity
             mov ecx, stockTable[eax*4]
             sub ecx, ebx
-            mov stockTable[eax*40, ecx
+            mov stockTable[eax*4], ecx
             
             ; ==== Ask if user wants another item ====
             push offset anotherMsg
@@ -668,4 +674,6 @@ include C:\masm32\include\masm32rt.inc
     ; put Stocks on items
     ; add item
     ; dashboard
-    ; add a create file for each receipt
+    ; Feature improvements:
+    ;   Persistence
+    ;   create a file for each receipt
