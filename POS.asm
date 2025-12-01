@@ -225,6 +225,38 @@ include C:\masm32\include\masm32rt.inc
             push offset inventoryOption
             call StdOut
             
+        read_inventory_item:
+            ; ==== Read and store user selection ====
+            push 32
+            push offset inputBuf
+            call StdIn
+            
+            ; ==== Check if input is empty ====
+            cmp byte ptr [inputBuf], 0
+            je invalid_selection_input
+
+            ; ==== Convert input to int ====
+            push offset inputBuf
+            call atodw ; converts string to int
+            jc invalid_type_input ; Jumps if input is not a number
+            
+            mov itemIdx, eax
+            
+            ; ==== Validate user input (1-3) ====
+            cmp eax, 1
+            jl invalid_selection_input
+            cmp eax, 3
+            jg invalid_selection_input
+
+            ; ==== go to selection ====
+            cmp eax, 1
+            je new_item
+            
+
+
+        new_item:
+            
+            
 
 
     start_summary:
@@ -647,6 +679,12 @@ include C:\masm32\include\masm32rt.inc
             jmp read_quantity
             
 
+        invalid_inventory_selection_input:
+            push offset invalidSelectionMsg
+            call StdOut
+            
+            jmp read_inventory_item
+            
         invalid_selection_input:
             push offset invalidSelectionMsg
             call StdOut
