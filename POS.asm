@@ -42,6 +42,7 @@ include C:\masm32\include\masm32rt.inc
                     db "1. Add new Item",13,10
                     db "2. Update Stock",13,10
                     db "3. Show Items with Stock",13,10
+                    db "0. Exit",13,10
                     db "Selection [1-3]: ", 0
     
 
@@ -121,7 +122,9 @@ include C:\masm32\include\masm32rt.inc
 
 
     ; ==== Inventory Messages ====
-
+    newItemMsg db "Item Name: ",13,10
+    newItemStockMsg db "Stock Amount: ", 13,10
+    successNewItemMsg db " added successfully", 13,10
 
 
 
@@ -169,6 +172,9 @@ include C:\masm32\include\masm32rt.inc
 .code
 
     start_minimart: 
+        ; ==== Clear Console Screen ====
+
+        invoke crt_system, addr clsCmd
         ; ==== Display JJRC Minimart Art ====;
         push offset jjrcMinimartArt
         call StdOut
@@ -233,7 +239,7 @@ include C:\masm32\include\masm32rt.inc
             
             ; ==== Check if input is empty ====
             cmp byte ptr [inputBuf], 0
-            je invalid_selection_input
+            je invalid_inventory_selection_input
 
             ; ==== Convert input to int ====
             push offset inputBuf
@@ -242,19 +248,32 @@ include C:\masm32\include\masm32rt.inc
             
             mov itemIdx, eax
             
-            ; ==== Validate user input (1-3) ====
-            cmp eax, 1
-            jl invalid_selection_input
+            ; ==== Validate user input (0-3) ====
+            cmp eax, 0
+            jl invalid_inventory_selection_input
             cmp eax, 3
-            jg invalid_selection_input
+            jg invalid_inventory_selection_input
 
             ; ==== go to selection ====
+            cmp eax, 0
+            je start_minimart
+            
             cmp eax, 1
             je new_item
+            
+            cmp eax, 2
             
 
 
         new_item:
+            ;==== New item msg ====
+            push offset newItemMsg
+            call StdOut
+            
+            ;==== Read and Store Msg
+            push 32
+            push offset inputBuf
+            call StdIn
             
             
 
