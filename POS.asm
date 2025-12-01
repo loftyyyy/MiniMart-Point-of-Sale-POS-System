@@ -42,6 +42,7 @@ include C:\masm32\include\masm32rt.inc
                     db "1. Add new Item",13,10
                     db "2. Update Stock",13,10
                     db "3. Show Items with Stock",13,10
+                    db "Selection [1-3]: ", 0
     
 
     ; ==== Shopping Cart ASCII Art ==== 
@@ -117,6 +118,12 @@ include C:\masm32\include\masm32rt.inc
     invalidQuantityMsg db "Invalid Quantity! Please enter a positive number", 13, 10, 0
     invalidTypeMsg db "Please input a number!", 13,10, 0
     invalidPay db "Invalid payment! Please enter a valid amount", 13, 10, 0
+
+
+    ; ==== Inventory Messages ====
+
+
+
 
 
     ; ==== Stock Messages ====
@@ -212,6 +219,12 @@ include C:\masm32\include\masm32rt.inc
             jmp read_option
 
     start_inventory:
+        
+        inventory_loop:
+            ; ==== Dislay inventory menu ====
+            push offset inventoryOption
+            call StdOut
+            
 
 
     start_summary:
