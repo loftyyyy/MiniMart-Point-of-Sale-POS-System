@@ -1,9 +1,31 @@
 ; MiniMart POS System (MASM32)
 ; Simulates a simple retail checkout transaction
+
 include C:\masm32\include\masm32rt.inc
 ;include C:\irvine32\Irvine32.inc
 
 .data
+
+    ; ==== Inventory file configuration ====
+    MAX_INVENTORY_ITEMS EQU 20
+
+    ITEM_RECORD STRUCT
+        ir_name  db 32 dup(0)   ; item name (null-terminated, max 31 chars)
+        ir_price DWORD ?        ; item price in pesos
+        ir_stock DWORD ?        ; current stock
+    ITEM_RECORD ENDS
+    
+    ; Field offsets for manual access
+    IR_NAME_OFFSET  EQU 0
+    IR_PRICE_OFFSET EQU 32
+    IR_STOCK_OFFSET EQU 36
+
+    inventoryFileName db "inventory.dat",0
+    inventoryRecords  ITEM_RECORD MAX_INVENTORY_ITEMS dup(<>)
+    currentInventoryCount DWORD 0
+    hInventoryFile DWORD 0
+    bytesIO        DWORD 0
+    fileSize       DWORD 0
 
     ;Current Time and Date 
     LPSYSTEMTIME STRUCT
@@ -18,7 +40,6 @@ include C:\masm32\include\masm32rt.inc
     LPSYSTEMTIME ENDS
 
     localTime LPSYSTEMTIME <>
-
 
     ;==== JJRC Minimart ASCII Art ====
     jjrcMinimartArt db "         ____.    ____.___________________      _____  .__       .__                       __   ",13,10
@@ -35,8 +56,6 @@ include C:\masm32\include\masm32rt.inc
                    db "3. POS", 13,10, 13,10
                    db "Selection [1-3]: ", 0
 
-
-
     ; ==== Inventory Option ====
     inventoryOption db 13,10,"=========  Inventory ========= ", 13,10
                     db "1. Add new Item",13,10
@@ -44,8 +63,6 @@ include C:\masm32\include\masm32rt.inc
                     db "3. Show Items with Stock",13,10
                     db "0. Exit",13,10
                     db "Selection [1-3]: ", 0
-    
-
 
     ; ==== Shopping Cart ASCII Art ==== 
     shoppingCartArt  db "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",13,10
@@ -64,54 +81,34 @@ include C:\masm32\include\masm32rt.inc
                      db "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",13,10
                      db 13,10
                      db 0
-    
-    
-    ; ==== Menu Text ====
-    textMenu db "========= MiniMart POS System =========", 13,10,13,10
-             db  "1. Coffee      - ₱39", 13,10
-             db  "2. Donut       - ₱12", 13,10
-             db  "3. Sandwich    - ₱15", 13,10
-             db  "4. Milk        - ₱50", 13,10
-             db  "5. Bread       - ₱25", 13,10
-             db  "6. Chips       - ₱30", 13,10
-             db  "7. Soda        - ₱20", 13,10
-             db  "8. Juice       - ₱15", 13,10
-             db  "9. Candy       - ₱5", 13,10
-             db  "10. Egg        - ₱8", 13,10,13,10
-             db  "Selection [1-10]: ", 0
 
-    qtyPrompt db "Enter Quantity: ", 0
-    anotherMsg db "Add another item? (Y/N): ",0 
-    paymentMsg db 13,10,"Payment Amount:   ₱",0
+    ; ==== Menu / POS & Receipt Text (dynamic inventory) ====
+    menuHeader   db "========= MiniMart POS System =========", 13,10,13,10,0
+    selectPrompt1 db "Selection [1-",0
+    selectPrompt2 db "]: ",0
+    menuPriceSep db " - ₱",0
 
-                
+    qtyPrompt   db "Enter Quantity: ", 0
+    anotherMsg  db "Add another item? (Y/N): ",0 
+    paymentMsg  db 13,10,"Payment Amount:   ₱",0
+
     ; ==== Receipt Messages ====
-    receiptHdr db 13,10, "========= RECEIPT =========",13,10,0
-    dateText db "Date: ",0
-    timeText db "   Time: ",0
+    receiptHdr  db 13,10, "========= RECEIPT =========",13,10,0
+    dateText    db "Date: ",0
+    timeText    db "   Time: ",0
     dateTimeBuf db 64 dup(0)
-    itemText db "Item ",0
-    itemNames db "Coffee", 0,0,0,0     ; 6 chars + 4 nulls = 10 bytes (Index 0)
-              db "Donut", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 1)
-              db "Sandwich", 0,0       ; 8 chars + 2 nulls = 10 bytes (Index 2)
-              db "Milk", 0,0,0,0,0,0   ; 4 chars + 6 nulls = 10 bytes (Index 3)
-              db "Bread", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 4)
-              db "Chips", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 5)
-              db "Soda", 0,0,0,0,0,0   ; 4 chars + 6 nulls = 10 bytes (Index 6)
-              db "Juice", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 7)
-              db "Candy", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 8)
-              db "Egg", 0,0,0,0,0,0    ; 3 chars + 7 nulls = 10 bytes (Index 9)
-    priceText db " x ", 0
-    atText    db " @ ₱", 0
-    equalText db " = ₱", 0
-    colonText db ": ", 0
-    dashLine  db "--------------------------", 13,10, 0
-    subText   db "Sub Total:        ₱",0        
-    taxText   db "VAT (12%):        ₱",0
-    totalText db "Total Amount:     ₱",0
-    dashLine2 db "===========================", 13,10,0
-    paidText  db "Amount Paid:      ₱",0
-    changeText db "Change:           ₱",0  
+    itemText    db "Item ",0
+    priceText   db " x ", 0
+    atText      db " @ ₱", 0
+    equalText   db " = ₱", 0
+    colonText   db ": ", 0
+    dashLine    db "--------------------------", 13,10, 0
+    subText     db "Sub Total:        ₱",0        
+    taxText     db "VAT (12%):        ₱",0
+    totalText   db "Total Amount:     ₱",0
+    dashLine2   db "===========================", 13,10,0
+    paidText    db "Amount Paid:      ₱",0
+    changeText  db "Change:           ₱",0  
 
     ; ==== Response Messages ====
     insuffMsg db "Insufficient payment! Please pay at least ₱",0 
@@ -121,14 +118,16 @@ include C:\masm32\include\masm32rt.inc
     invalidTypeMsg db "Please input a number!", 13,10, 0
     invalidPay db "Invalid payment! Please enter a valid amount", 13, 10, 0
 
-
     ; ==== Inventory Messages ====
-    newItemMsg db "Item Name: ",13,10
-    newItemStockMsg db "Stock Amount: ", 13,10
-    successNewItemMsg db " added successfully", 13,10
-
-
-
+    newItemMsg db "Item Name: ",13,10,0
+    newItemPriceMsg db "Item Price (in pesos): ",13,10,0
+    newItemStockMsg db "Initial Stock Amount: ", 13,10,0
+    successNewItemMsg db "Item added successfully.", 13,10,0
+    inventoryFullMsg db "Inventory is full, cannot add more items.",13,10,0
+    updateItemIndexMsg db "Enter item number to update: ",13,10,0
+    newStockAmountMsg db "New Stock Amount: ",13,10,0
+    noItemsMsg db "No items in inventory.",13,10,0
+    showItemsHeader db 13,10,"Items with stock:",13,10,0
 
     ; ==== Stock Messages ====
     outOfStockMsg db "Sorry, this item is out of stock!", 13,10,0
@@ -136,13 +135,6 @@ include C:\masm32\include\masm32rt.inc
     availableMsg db " available", 13, 10, 0
     stockPrompt db " (Stock: ",0
     closeParen db ")", 0
-
-
-    ; ==== Prices ====
-    priceTable DWORD 39, 12, 15, 50, 25, 30, 20, 15, 5, 8
-
-    ; ==== Stock ====
-    stockTable DWORD 10, 10, 10, 10, 10, 10, 10, 10, 10, 10
 
     ; ==== Buffers ====
     inputBuf        db 32 dup(0)
@@ -164,18 +156,18 @@ include C:\masm32\include\masm32rt.inc
     receiptQtys     DWORD 10 dup(0)
     receiptTotals   DWORD 10 dup(0)
 
-
     ; some command for the clear screen
     clsCmd db "cls", 0
-
-
 
 .code
 
     start_minimart: 
-        ; ==== Clear Console Screen ====
+        ; ==== Load inventory from file (if it exists) ====
+        call LoadInventory
 
+        ; ==== Clear Console Screen ====
         invoke crt_system, addr clsCmd
+
         ; ==== Display JJRC Minimart Art ====;
         push offset jjrcMinimartArt
         call StdOut
@@ -228,7 +220,7 @@ include C:\masm32\include\masm32rt.inc
     start_inventory:
         
         inventory_loop:
-            ; ==== Dislay inventory menu ====
+            ; ==== Display inventory menu ====
             push offset inventoryOption
             call StdOut
             
@@ -263,21 +255,266 @@ include C:\masm32\include\masm32rt.inc
             je new_item
             
             cmp eax, 2
-            
+            je update_stock
 
+            cmp eax, 3
+            je show_inventory_items
 
         new_item:
-            ;==== New item msg ====
+            ;==== New item name ====
             push offset newItemMsg
             call StdOut
             
-            ;==== Read and Store Msg
+            ;==== Read and store name ====
             push 32
             push offset inputBuf
             call StdIn
             
+            ;==== Check if inventory is full ====
+            mov eax, currentInventoryCount
+            cmp eax, MAX_INVENTORY_ITEMS
+            jae inventory_full
             
+            ;==== Compute pointer to new inventory record ====
+            mov ecx, eax                    ; ecx = index = currentInventoryCount
+            mov eax, SIZEOF ITEM_RECORD
+            mul ecx                          ; eax = index * sizeof(ITEM_RECORD)
+            lea edi, inventoryRecords
+            add edi, eax                     ; edi -> new ITEM_RECORD
+            
+            ;==== Copy name from inputBuf to ir_name (max 31 chars) ====
+            mov esi, OFFSET inputBuf
+            mov ecx, 31
+        copy_new_name_loop:
+            cmp ecx, 0
+            je finish_name_copy
+            mov al, [esi]
+            cmp al, 0
+            je finish_name_copy
+            cmp al, 13                      ; stop at CR
+            je finish_name_copy
+            cmp al, 10                      ; stop at LF
+            je finish_name_copy
+            mov [edi], al
+            inc esi
+            inc edi
+            dec ecx
+            jmp copy_new_name_loop
+            
+        finish_name_copy:
+            mov byte ptr [edi], 0           ; null-terminate name
+            
+            ;==== Ask and read item price ====
+            push offset newItemPriceMsg
+            call StdOut
+            
+            push 32
+            push offset inputBuf
+            call StdIn
+            
+            ;==== Validate that price input contains only digits ====
+            mov esi, offset inputBuf
+        validate_new_price_loop:
+            mov al, [esi]
+            cmp al, 0
+            je new_price_digits_valid
+            cmp al, 13
+            je new_price_digits_valid
+            cmp al, 10
+            je new_price_digits_valid
+            cmp al, '0'
+            jb invalid_quantity_input
+            cmp al, '9'
+            ja invalid_quantity_input
+            inc esi
+            jmp validate_new_price_loop
+            
+        new_price_digits_valid:
+            push offset inputBuf
+            call atodw
+            jc invalid_quantity_input
+            
+            cmp eax, 0
+            jle invalid_quantity_input
+            
+            mov edx, eax                    ; save price value in EDX
+            
+            ;==== Store price in record (ir_price) ====
+            ; Recompute pointer to record
+            mov ebx, currentInventoryCount   ; index
+            mov eax, SIZEOF ITEM_RECORD
+            mul ebx
+            lea edi, inventoryRecords
+            add edi, eax
+            mov [edi+IR_PRICE_OFFSET], edx   ; store price
+            
+            ;==== Ask and read initial stock amount ====
+            push offset newItemStockMsg
+            call StdOut
+            
+            push 32
+            push offset inputBuf
+            call StdIn
+            
+            ;==== Validate that stock input contains only digits ====
+            mov esi, offset inputBuf
+        validate_new_stock_loop:
+            mov al, [esi]
+            cmp al, 0
+            je new_stock_digits_valid
+            cmp al, 13
+            je new_stock_digits_valid
+            cmp al, 10
+            je new_stock_digits_valid
+            cmp al, '0'
+            jb invalid_quantity_input
+            cmp al, '9'
+            ja invalid_quantity_input
+            inc esi
+            jmp validate_new_stock_loop
+            
+        new_stock_digits_valid:
+            push offset inputBuf
+            call atodw
+            jc invalid_quantity_input
+            
+            cmp eax, 0
+            jle invalid_quantity_input
+            
+            mov edx, eax                    ; save stock value in EDX
+            
+            ;==== Store stock in record (ir_stock) ====
+            ; Recompute pointer to record
+            mov ebx, currentInventoryCount   ; index
+            mov eax, SIZEOF ITEM_RECORD
+            mul ebx
+            lea edi, inventoryRecords
+            add edi, eax
+            mov [edi+IR_STOCK_OFFSET], edx   ; store stock
+            
+            ;==== Increase inventory count ====
+            mov eax, currentInventoryCount
+            inc eax
+            mov currentInventoryCount, eax
+            
+            ;==== Save inventory to file ====
+            call SaveInventory
+            
+            ;==== Success message ====
+            push offset successNewItemMsg
+            call StdOut
+            
+            jmp inventory_loop
 
+        inventory_full:
+            push offset inventoryFullMsg
+            call StdOut
+            jmp inventory_loop
+
+        update_stock:
+            ;==== Check if there are items ====
+            mov eax, currentInventoryCount
+            cmp eax, 0
+            je no_items_inventory
+
+            ;==== Show current items ====
+            call ShowInventoryItems
+
+            ;==== Ask which item to update ====
+            push offset updateItemIndexMsg
+            call StdOut
+
+            push 32
+            push offset inputBuf
+            call StdIn
+
+            ;==== Validate and convert index ====
+            mov esi, offset inputBuf
+        validate_update_index_loop:
+            mov al, [esi]
+            cmp al, 0
+            je update_index_digits_valid
+            cmp al, 13
+            je update_index_digits_valid
+            cmp al, 10
+            je update_index_digits_valid
+            cmp al, '0'
+            jb invalid_inventory_selection_input
+            cmp al, '9'
+            ja invalid_inventory_selection_input
+            inc esi
+            jmp validate_update_index_loop
+
+        update_index_digits_valid:
+            push offset inputBuf
+            call atodw
+            jc invalid_inventory_selection_input
+
+            cmp eax, 1
+            jl invalid_inventory_selection_input
+            cmp eax, currentInventoryCount
+            jg invalid_inventory_selection_input
+
+            ; convert to 0-based index
+            dec eax
+            mov itemIdx, eax
+
+            ;==== Ask for new stock amount ====
+            push offset newStockAmountMsg
+            call StdOut
+
+            push 32
+            push offset inputBuf
+            call StdIn
+
+            ;==== Validate new stock digits ====
+            mov esi, offset inputBuf
+        validate_update_stock_loop:
+            mov al, [esi]
+            cmp al, 0
+            je update_stock_digits_valid
+            cmp al, 13
+            je update_stock_digits_valid
+            cmp al, 10
+            je update_stock_digits_valid
+            cmp al, '0'
+            jb invalid_quantity_input
+            cmp al, '9'
+            ja invalid_quantity_input
+            inc esi
+            jmp validate_update_stock_loop
+
+        update_stock_digits_valid:
+            push offset inputBuf
+            call atodw
+            jc invalid_quantity_input
+
+            cmp eax, 0
+            jle invalid_quantity_input
+
+            mov edx, eax                    ; save new stock
+
+            ;==== Store new stock in selected record ====
+            mov ecx, itemIdx
+            mov eax, SIZEOF ITEM_RECORD
+            mul ecx                          ; eax = index * sizeof(ITEM_RECORD)
+            lea edi, inventoryRecords
+            add edi, eax
+            mov [edi+IR_STOCK_OFFSET], edx   ; store stock
+
+            ;==== Save inventory ====
+            call SaveInventory
+
+            jmp inventory_loop
+
+        show_inventory_items:
+            call ShowInventoryItems
+            jmp inventory_loop
+
+        no_items_inventory:
+            push offset noItemsMsg
+            call StdOut
+            jmp inventory_loop
 
     start_summary:
 
@@ -292,9 +529,13 @@ include C:\masm32\include\masm32rt.inc
         
         item_loop:
             
-            ; ==== Display Menu ====;
-            push offset textMenu
-            call StdOut
+            ; ==== Check if there are items in inventory ====
+            mov eax, currentInventoryCount
+            cmp eax, 0
+            jle no_items_inventory
+
+            ; ==== Display dynamic menu from inventory ====
+            call ShowPosMenu
 
         read_item: 
             ; ===== Read and Store item number =====
@@ -312,34 +553,34 @@ include C:\masm32\include\masm32rt.inc
             jc invalid_type_input ; Jumps if input is not a number
             mov itemIdx, eax
      
-            ; ===== Validate input (1-10) =====
+            ; ===== Validate input (1..currentInventoryCount) =====
             cmp eax, 1
             jl invalid_selection_input
-            cmp eax, 10
+            mov ebx, currentInventoryCount
+            cmp eax, ebx
             jg invalid_selection_input
 
             ; ==== Convert user selection to 0 based index ====
             dec eax
             mov itemIdx, eax
 
-            ; ==== Fetch Price based on user selection ====
-            mov ebx, itemIdx
-            mov eax, priceTable[ebx*4]
+            ; ==== Fetch price and stock from inventory record ====
+            mov ecx, itemIdx
+            mov eax, SIZEOF ITEM_RECORD
+            mul ecx
+            lea edi, inventoryRecords
+            add edi, eax                    ; EDI -> selected record
+            
+            mov eax, [edi+IR_PRICE_OFFSET]   ; read price
             mov price, eax
-
-            ; ==== Check if item is in stock ====
-            ; TODO: To be implemented
-            mov ebx, itemIdx
-            mov eax, stockTable[ebx*4]
+            
+            mov eax, [edi+IR_STOCK_OFFSET]   ; read stock
 
             cmp eax, 0
             je out_of_stock_error
             
             mov stock, eax
             
-
-            
-
         ; ==== Ask for item quantity and store it ====
         read_quantity:
             push offset qtyPrompt
@@ -355,7 +596,7 @@ include C:\masm32\include\masm32rt.inc
             
             ; ==== Validate that input contains only digits ====
             mov esi, offset inputBuf
-            validate_digit_loop:
+        validate_digit_loop:
                 mov al, [esi]
                 cmp al, 0                    ; End of string?
                 je digits_valid
@@ -382,11 +623,10 @@ include C:\masm32\include\masm32rt.inc
             
             ; ==== Check if requested quantity exceeds available stock ====
             mov ebx, itemIdx
-            mov ecx, stockTable[ebx*4] ; Gets current stock
+            mov ecx, stock                ; current stock for selected item
             cmp eax, ecx
             jg insufficient_stock_error
             
-
             mov quantity, eax
 
             ; ==== Compute item subtotal ====
@@ -412,12 +652,15 @@ include C:\masm32\include\masm32rt.inc
             ;==== Increase Item Count ====
             inc itemCount
 
-            ; ==== Decrease Stock ====
-            mov eax, itemIdx
-            mov ebx, quantity
-            mov ecx, stockTable[eax*4]
-            sub ecx, ebx
-            mov stockTable[eax*4], ecx
+            ; ==== Decrease Stock in inventory record ====
+            mov ecx, itemIdx
+            mov eax, SIZEOF ITEM_RECORD
+            mul ecx
+            lea edi, inventoryRecords
+            add edi, eax
+            mov ecx, [edi+IR_STOCK_OFFSET]   ; current stock
+            sub ecx, ebx                    ; ebx = quantity
+            mov [edi+IR_STOCK_OFFSET], ecx   ; update ir_stock
             
             ; ==== Ask if user wants another item ====
             push offset anotherMsg
@@ -461,8 +704,7 @@ include C:\masm32\include\masm32rt.inc
             invoke StdOut, str$(finalTotal)
             invoke StdOut, chr$(13,10)
             
-            payment_loop:
-                
+        payment_loop:
                 ; ==== Ask for payment ====
                 push offset paymentMsg
                 call StdOut
@@ -480,7 +722,7 @@ include C:\masm32\include\masm32rt.inc
             
                 ; ==== Validate that payment input contains only digits ====
                 mov esi, offset inputBuf
-                validate_payment_loop:
+        validate_payment_loop:
                     mov al, [esi]
                     cmp al, 0                    ; End of string?
                     je valid_payment
@@ -495,8 +737,7 @@ include C:\masm32\include\masm32rt.inc
                     inc esi
                     jmp validate_payment_loop
 
-                valid_payment:
-                                    
+        valid_payment:
                     push offset inputBuf
                     call atodw
                     mov payment, eax
@@ -512,6 +753,9 @@ include C:\masm32\include\masm32rt.inc
                     ; ==== Calculate Change ====
                     sub eax, finalTotal
                     mov change, eax
+                    
+                    ; ==== Persist updated inventory ====
+                    call SaveInventory
                     
                     ; ==== Print Receipt ==== 
                     push offset receiptHdr
@@ -538,16 +782,16 @@ include C:\masm32\include\masm32rt.inc
                     sub eax, 12
                     mov edx, 1          ; PM (hours 13-23 are afternoon/evening)
                     jmp time_format
-                time_noon:
+        time_noon:
                     mov eax, 12
                     mov edx, 1          ; PM (12:00 is noon)
                     jmp time_format
-                time_am_check:
+        time_am_check:
                     cmp eax, 0
                     jne time_format
                     mov eax, 12
                     mov edx, 0          ; AM (0:00 is midnight)
-                time_format:
+        time_format:
                     ; Save converted hour and minute before calculating buffer position
                     push eax             ; Save converted hour (12-hour format)
                     push ebx             ; Save minute
@@ -567,9 +811,9 @@ include C:\masm32\include\masm32rt.inc
                     je append_am
                     invoke wsprintf, esi, chr$("   Time: %02d:%02d PM"), eax, ebx
                     jmp time_done
-                append_am:
+        append_am:
                     invoke wsprintf, esi, chr$("   Time: %02d:%02d AM"), eax, ebx
-                time_done:
+        time_done:
                     ; ==== Print Date/Time ====
                     push offset dateTimeBuf
                     call StdOut
@@ -599,13 +843,14 @@ include C:\masm32\include\masm32rt.inc
             push offset colonText
             call StdOut
 
-            ; ==== Print Item Name ====
-            mov eax, receiptItems[esi*4]
-            mov ebx, 10
-            mul ebx
-            lea ebx, itemNames
-            add ebx, eax
-            invoke StdOut, ebx
+            ; ==== Print Item Name (from inventory record) ====
+            mov eax, receiptItems[esi*4]   ; item index (0-based)
+            mov ecx, eax
+            mov eax, SIZEOF ITEM_RECORD
+            mul ecx
+            lea edi, inventoryRecords
+            add edi, eax                   ; EDI -> record
+            invoke StdOut, edi
             
             ; ==== Print Quantity Of the Item ====
             push offset priceText
@@ -615,9 +860,8 @@ include C:\masm32\include\masm32rt.inc
             ; ==== Print Price Of the Item ====
             push offset atText
             call StdOut
-            mov eax, receiptItems[esi*4]
-            mov ebx, priceTable[eax*4]
-            invoke StdOut, str$(ebx)
+            mov eax, [edi+IR_PRICE_OFFSET]   ; read price
+            invoke StdOut, str$(eax)
 
             ; ==== Print Item Total ====
             push offset equalText
@@ -630,7 +874,6 @@ include C:\masm32\include\masm32rt.inc
 
             ; ==== Loop back to print_items label ====
             jmp print_items
-
 
         print_totals:
             ;==== Print Separator ==== 
@@ -663,7 +906,6 @@ include C:\masm32\include\masm32rt.inc
             push offset dashLine2
             call StdOut
             
-
             ; ==== Print Payment Details ====
             push offset paidText
             call StdOut
@@ -683,8 +925,7 @@ include C:\masm32\include\masm32rt.inc
 
         out_of_stock_error:
             push offset outOfStockMsg
-            call StdIn
-
+            call StdOut
             jmp item_loop
 
         insufficient_stock_error:
@@ -698,8 +939,6 @@ include C:\masm32\include\masm32rt.inc
             call StdOut
             
             jmp read_quantity
-            
-
 
         invalid_inventory_selection_input:
             push offset invalidSelectionMsg
@@ -742,11 +981,215 @@ include C:\masm32\include\masm32rt.inc
             invoke ExitProcess, 0
             
 
+; ============================================================
+; Inventory persistence procedures
+; ============================================================
+
+; ---- LoadInventory ----
+; Loads inventory from inventory.dat if it exists.
+; File format:
+;   DWORD count
+;   ITEM_RECORD[count]
+
+LoadInventory PROC
+        ; Try to open existing inventory file for reading
+        invoke CreateFile, addr inventoryFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL
+        cmp eax, INVALID_HANDLE_VALUE
+        je no_inventory_file
+
+        mov hInventoryFile, eax
+
+        ; Get file size to validate format (handle old/incompatible files)
+        invoke GetFileSize, hInventoryFile, NULL
+        mov fileSize, eax
+
+        ; Read item count
+        invoke ReadFile, hInventoryFile, addr currentInventoryCount, SIZEOF currentInventoryCount, addr bytesIO, NULL
+
+        ; Validate count
+        mov eax, currentInventoryCount
+        cmp eax, MAX_INVENTORY_ITEMS
+        jbe count_ok
+        mov eax, MAX_INVENTORY_ITEMS
+        mov currentInventoryCount, eax
+
+    count_ok:
+        ; Validate file size against expected layout: 4 + count * SIZEOF ITEM_RECORD
+        mov ecx, currentInventoryCount
+        mov eax, SIZEOF ITEM_RECORD
+        mul ecx
+        add eax, SIZEOF currentInventoryCount   ; expected size
+        cmp eax, fileSize
+        jne bad_inventory_file
+
+        ; Valid size and count
+        mov eax, currentInventoryCount
+        cmp eax, 0
+        jle close_inventory_load
+
+        ; Read records
+        mov ecx, eax                     ; ecx = count
+        mov eax, SIZEOF ITEM_RECORD
+        mul ecx                          ; eax = count * sizeof(ITEM_RECORD)
+        invoke ReadFile, hInventoryFile, addr inventoryRecords, eax, addr bytesIO, NULL
+        jmp close_inventory_load
+
+    bad_inventory_file:
+        ; Incompatible old file layout – ignore its contents
+        mov currentInventoryCount, 0
+
+    close_inventory_load:
+        invoke CloseHandle, hInventoryFile
+        jmp inv_load_done
+
+    no_inventory_file:
+        ; No file yet, start with empty inventory
+        mov currentInventoryCount, 0
+
+    inv_load_done:
+        ret
+LoadInventory ENDP
+
+; ---- SaveInventory ----
+; Saves current inventory to inventory.dat
+
+SaveInventory PROC
+        ; Open (or create) file for writing
+        invoke CreateFile, addr inventoryFileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL
+        cmp eax, INVALID_HANDLE_VALUE
+        je save_inv_done
+
+        mov hInventoryFile, eax
+
+        ; Write count
+        invoke WriteFile, hInventoryFile, addr currentInventoryCount, SIZEOF currentInventoryCount, addr bytesIO, NULL
+
+        ; Write records if any
+        mov eax, currentInventoryCount
+        cmp eax, 0
+        jle close_inventory_save
+
+        mov ecx, eax
+        mov eax, SIZEOF ITEM_RECORD
+        mul ecx
+        invoke WriteFile, hInventoryFile, addr inventoryRecords, eax, addr bytesIO, NULL
+
+    close_inventory_save:
+        invoke CloseHandle, hInventoryFile
+
+    save_inv_done:
+        ret
+SaveInventory ENDP
+
+; ---- ShowInventoryItems ----
+; Prints all items with their current stock
+
+ShowInventoryItems PROC
+        ; Check if there are items
+        mov eax, currentInventoryCount
+        cmp eax, 0
+        jle show_inv_done
+
+        ; Header
+        push offset showItemsHeader
+        call StdOut
+
+        mov esi, 0
+
+    show_inv_loop:
+        cmp esi, currentInventoryCount
+        jge show_inv_done
+
+        ; Print item number (1-based)
+        mov eax, esi
+        inc eax
+        invoke StdOut, str$(eax)
+
+        ; Print ". "
+        invoke StdOut, chr$('.', ' ')
+
+        ; Compute pointer to record
+        mov ecx, esi
+        mov eax, SIZEOF ITEM_RECORD
+        mul ecx
+        lea edi, inventoryRecords
+        add edi, eax
+
+        ; Print name
+        invoke StdOut, edi
+
+        ; Print stock: " (Stock: "
+        push offset stockPrompt
+        call StdOut
+
+        ; stock
+        mov eax, [edi+IR_STOCK_OFFSET]
+        invoke StdOut, str$(eax)
+
+        ; Print closing parenthesis and newline
+        push offset closeParen
+        call StdOut
+        invoke StdOut, chr$(13,10)
+
+        inc esi
+        jmp show_inv_loop
+
+    show_inv_done:
+        ret
+ShowInventoryItems ENDP
+
+; ---- ShowPosMenu ----
+; Builds and displays the POS menu from inventoryRecords
+
+ShowPosMenu PROC
+        ; Header
+        push offset menuHeader
+        call StdOut
+
+        mov esi, 0
+
+    show_menu_loop:
+        cmp esi, currentInventoryCount
+        jge menu_done
+
+        ; Print item number (1-based)
+        mov eax, esi
+        inc eax
+        invoke StdOut, str$(eax)
+        invoke StdOut, chr$('.', ' ')
+
+        ; Compute pointer to record
+        mov ecx, esi
+        mov eax, SIZEOF ITEM_RECORD
+        mul ecx
+        lea edi, inventoryRecords
+        add edi, eax
+
+        ; Print name
+        invoke StdOut, edi
+
+        ; Print " - ₱"
+        push offset menuPriceSep
+        call StdOut
+
+        ; Print price
+        mov eax, [edi+IR_PRICE_OFFSET]
+        invoke StdOut, str$(eax)
+        invoke StdOut, chr$(13,10)
+
+        inc esi
+        jmp show_menu_loop
+
+    menu_done:
+        ; Print selection prompt: "Selection [1-N]: "
+        push offset selectPrompt1
+        call StdOut
+        mov eax, currentInventoryCount
+        invoke StdOut, str$(eax)
+        push offset selectPrompt2
+        call StdOut
+
+        ret
+ShowPosMenu ENDP
+
     end start_minimart
-    ;TODO: CLS every new item - Done
-    ; put Stocks on items
-    ; add item
-    ; dashboard
-    ; Feature improvements:
-    ;   Persistence
-    ;   create a file for each receipt
