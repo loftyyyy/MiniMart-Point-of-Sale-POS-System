@@ -19,6 +19,11 @@ include C:\masm32\include\masm32rt.inc
 
     localTime LPSYSTEMTIME <>
 
+    ; ==== File handling ====
+    stockFileName db "stock.dat", 0
+    fileHandle DWORD ?
+    bytesRead DWORD ?
+    bytesWritten DWORD ?
 
     ; ==== Dynamic Item Structure ====
     ; Each item: [Name(32 bytes)][Price(4 bytes)][Stock(4 bytes)] = 40 bytes per item syet
@@ -158,8 +163,9 @@ include C:\masm32\include\masm32rt.inc
     invalidPay db "Invalid payment! Please enter a valid amount", 13, 10, 0
 
 
-
-
+    ; ==== File error messages ====
+    fileErrorMsg db "Warning: Could not load stock data. Using defaults.", 13, 10, 0
+    fileSaveErrorMsg db "Warning: Could not save stock data.", 13, 10, 0
 
 
     ; ==== Stock Messages ====
@@ -845,8 +851,264 @@ include C:\masm32\include\masm32rt.inc
 
     InitializeDefaultItems ENDP
 
+    ; ========================================
+    ; Load Inventory from File
+    ; ========================================
+    LoadInventory PROC
+        LOCAL bytesToRead:DWORD
+        
+        ;Trying to open inventory file
+        invoke CreateFile, addr inventoryFileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRUBTE_NORMAL, NULL
+
+        cmp eax, INVALID_HANDLE_VALUE
+        je load_default
+        mov fileHandle, eax
+
+        ; Read item count first
+        invoke ReadFile, fileHandle, addr currentItemCount, 4, addr bytesRead, NULL
+        
+        ; Calculate bytes to read for al items
+        mov eax, currentItemCount
+        mov ebx, ITEM_SIZE
+        mul ebx
+        mov bytesToRead, eax
+
+        ; Read all items
+        invoke ReadFile, fileHandle, addr itemDatabase, bytesToRead, add bytesRead, Null
+
+        invoke CloseHandle, fileHandle
+        ret
+        
+        load_default:
+            call InitializeDefaultItems
+            ret
+    
+
+
+        
+    LoadInventory ENDP
+    
+    ; ========================================
+    ; Save Inventory to File
+    ; ========================================   
+
+    SaveInventory PROC
+        LOCAL bytesToWrite:DWORD
+
+        invoke CreateFile, addr inventoryFileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL
+    cmp eax, INVALID_HANDLE_VALUE
+    je save_failed
+    mov fileHandle, eax
+
+    ; Write item count first since it is what we are reading first
+    invoke WriteFile, fileHandle, addr currentItemCount, 4, addr bytesWritten, NULL
+
+    ;Calculate bytes to write
+    mov eax, currentItemCount
+    mov ebx, ITEM_SIZE
+    mul ebx
+    mov bytesToWrite, eax
+
+    ;Write all items
+    invoke WriteFile, fileHandle, addr itemDatabase, bytesToWrite, addr bytesWritten, NULL
+
+    invoke CloseHandle, fileHandle
+    ret
+
+    save_failed:
+        push offset fileSaveErrorMsg
 
     
+
+    SaveInventory ENDP
+    
+    ; ========================================
+    ; Display Dynamic Menu with Stock
+    ; ========================================
+    DisplayDynamicMenu PROC
+        LOCAL itemNum:DWORD, itemOffset:DWORD
+        LOCAL itemPrice:DWORD, itemStock:DWORD
+
+        invoke StdOut, chr$(13,10)
+        push offset menuHeader
+        call StdOut
+
+
+        ; Check if there are any items
+        mov eax, currentItemcount
+        cmp eax, 0
+        je no_items
+        
+        mov itemNum, 0
+
+        display_loop:
+            mov eax, itemNum
+            cmp eax, currentItemCount
+            jge display_done
+        
+            ; Calculate offset for current item
+            mov eax, itemNum
+            mov ebx, ITEM_SIZE
+            mul ebx
+            mov itemOffset, eax
+            
+            ; Get item data
+            lea esi, itemDatabase
+            add esi, itemOffset
+            
+            ; Get price and stoc
+            mov eax, [esi + NAME_SIZE]
+            mov itemPrice, eax
+            mov eax, [esi + NAME_SIZE + 4]
+            mov itemStock, eax
+            
+            ;Clear Menu line buffer
+            invoke RtlZeroMemory, addr menuLine, 64
+            
+            ; Format: "X. ItemName - ₱Price (Stock: X)"
+            mov eax, itemNum
+            inc eax ;To display as 1-based since by default it is 0 based
+            invoke wsprintf, addr menuLine, chr$("%d. %-12s - ₱%-4d (Stock: %d)"), eax, esi, itemPrice, itemStock
+            
+            push offset menuLine
+            call StdOut
+            invoke StdOut, chr$(13,10)
+            
+            inc itemNum
+            jmp display_loop
+            
+        no_items:
+            push offset noItemsMsg
+            call StdOut
+        
+
+        display_done:
+            invoke StdOut, chr$(13,10,"Selection [1-")
+            invoke StdOut, str$(currentItemCount)
+            invoke StdOut, chr$("]: ")
+            ret
+
+    DisplayDynamicMenu ENDP
+    
+    ; ========================================
+    ; Add New Item
+    ; ========================================   
+    AddNewItem PROC
+        LOCAL itemOffset:DWORD
+        
+        ; check if inventory is full
+        mov eax, currentItemCount
+        cmp eax, MAX_ITEMS
+        jge inventory_full
+        
+        ;Display add item menu
+        push offset addItemMenu
+        call StdOut
+
+        ; Get item name
+        push offset namePrompt
+        call StdOut
+
+        push NAME_SIZE
+        push offset tempName
+        call StdIn
+        
+        ;Get item price
+        get_price:
+            ; Display price prompt
+            push offset pricePrompt
+            call StdOut
+            
+            ; Input
+            push 32
+            push offset inputBuf
+            call StdIn
+
+            ; input validation
+            cmp byte ptr [inputBuf], 0
+            je get_price
+            
+            ;Converting input(str) to int
+            push offset inputBuf
+            call atodw
+            jc get_price
+            cmp eax, 0
+            jle get_price
+            mov tempPrice, eax
+            
+        ;Get item Stock
+        get_stock:
+            ; Display stock prompt
+            push offset stockPrompt
+            call StdOut
+            
+            ;input
+            push 32
+            push offset inputBuf
+            call StdIn
+            
+            ;input validation
+            cmp byte ptr [inputBuf], 0
+            je get_stock
+
+            ;Converting input(str) to int
+            push offset inputBuf
+            call atodw
+            jc get_stock
+            cmp eax, 0
+            jl get_stock
+            mov tempStock, eax
+            
+            ; Calculate offset for new item
+            mov eax, currentItemCount
+            mov ebx, ITEM_SIZE
+            mul ebx
+            mov itemOffset, eax
+            
+            ; copy data to database
+            lea edi, itemDatabase
+            add edi, itemOffset ;edi now has the new mem address of the newly allocated space for the new item
+        
+            ; copy name
+            invoke lstrcpy, edi, addr tempName
+            
+            ;copy price
+            mov eax, tempPrice
+            mov [edi + NAME_SIZE], eax
+
+            ;copy stock
+            mov eax, tempStock
+            mov [edi + NAME_SIZE + 4], eax
+
+            ; increment item count +1
+            inc currentItemCount
+
+            ;Save to file
+            call SaveInventory
+            
+            ; Print successful item add
+            push offset itemAddedMsg
+            call StdOut
+            
+            ret
+
+        inventory_full:
+            push offset inventoryFullMsg
+            call StdOut
+
+            ret
+            
+        add_item_cancelled:
+
+            ret
+
+
+    AddNewItem ENDP
+
+
+
+
+
 
     end start_minimart
     ;TODO: CLS every new item - Done
