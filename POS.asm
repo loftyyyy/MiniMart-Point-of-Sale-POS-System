@@ -773,6 +773,80 @@ include C:\masm32\include\masm32rt.inc
         exit_program:
             invoke ExitProcess, 0
             
+    ; ========================================
+    ; Initialize Default Items
+    ; ========================================
+    InitializeDefaultItems PROC
+        LOCAL itemOffset:DWORD
+        
+
+        ;Item 0: Coffee
+        mov itemOffset, 0
+        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Coffee")
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 39 ; item Price
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 50 ; item Stock
+
+        ;Item 1: Donut
+        add itemOffset, ITEM_SIZE
+        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Donut")
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 12 ; item Price
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 100 ; item Stock
+        
+        ;Item 2: Sandwich
+        add itemOffset, ITEM_SIZE
+        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Sandwich")
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 15 ; item Price
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 75 ; item Stock
+    
+        ;Item 3: Milk
+        add itemOffset, ITEM_SIZE
+        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Milk")
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 50 ; item Price
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 40 ; item Stock
+
+        ;Item 4: Bread
+        add itemOffset, ITEM_SIZE
+        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Bread")
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 25 ; item Price
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 60 ; item Stock
+
+        ;Item 5: Chips
+        add itemOffset, ITEM_SIZE
+        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Chips")
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 30 ; item Price
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 80 ; item Stock
+
+        ;Item 6: Soda
+        add itemOffset, ITEM_SIZE
+        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Soda")
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 20 ; item Price
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 90 ; item Stock
+
+        ;Item 7: Juice
+        add itemOffset, ITEM_SIZE
+        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Juice")
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 15 ; item Price
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 70 ; item Stock
+
+        ;Item 8: Candy
+        add itemOffset, ITEM_SIZE
+        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Candy")
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 5 ; item Price
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 150 ; item Stock
+    
+        ;Item 9: Egg
+        add itemOffset, ITEM_SIZE
+        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Egg")
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 8 ; item Price
+        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 120 ; item Stock
+
+        mov currentItemCount, 10
+        ret
+
+    InitializeDefaultItems ENDP
+
+
+    
 
     end start_minimart
     ;TODO: CLS every new item - Done
