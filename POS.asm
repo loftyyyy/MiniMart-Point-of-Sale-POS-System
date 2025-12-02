@@ -20,6 +20,42 @@ include C:\masm32\include\masm32rt.inc
     localTime LPSYSTEMTIME <>
 
 
+    ; ==== Dynamic Item Structure ====
+    ; Each item: [Name(32 bytes)][Price(4 bytes)][Stock(4 bytes)] = 40 bytes per item syet
+    MAX_ITEMS equ 50    ;Only 50 items max
+    ITEM_SIZE equ 40    ; size of the entire item structure
+    NAME_SIZE equ 32    ; 32 bytes for each item name
+
+    itemDatabase db MAX_ITEMS * ITEM_SIZE dup(0)
+    currentItemcount DWORD 10 ;Default with 10 items
+
+    ;==== File Names ====
+    inventoryFileName db "inventory.dat", 0
+    configFileName db "config.dat",0
+
+    ; ==== Temporary buffers for item operations ====
+    tempName db NAME_SIZE dup(0)
+    tempPrice DWORD ?
+    tempStock DWORD ?
+
+    ; ===== Add Item menu and messages ====
+    addItemMenu db 13,10,"========= Add New Item =========",13,10
+                db "Enter item details:", 13,10, 0
+    namePrompt db "Item Name: ",0
+    pricePrompt db "Price (₱): ",0
+    stockPrompt db "Initial Stock: ", 0
+    itemAddedMsg db "Item added succesffully!",13,10,0
+    inventoryFullMsg db "Inventory is full! Cannot add more items!"13,10,0
+
+    ; ==== Inventory Display ====
+    inventoryHeader db 13,10,"========= Current Inventory =========",13,10,0
+    inventoryLine db "ID: ",0
+    nameLabel db " | Name: ",0
+    priceLabel db " | Price: ₱",0
+    stockLabel db " | Stock: ",0
+    noItemsMsg db "No items in inventory.",13,10,0
+
+
     ;==== JJRC Minimart ASCII Art ====
     jjrcMinimartArt db "         ____.    ____.___________________      _____  .__       .__                       __   ",13,10
                   db "        |    |   |    |\______   \_   ___ \    /     \ |__| ____ |__| _____ _____ ________/  |_ ",13,10
@@ -122,10 +158,6 @@ include C:\masm32\include\masm32rt.inc
     invalidPay db "Invalid payment! Please enter a valid amount", 13, 10, 0
 
 
-    ; ==== Inventory Messages ====
-    newItemMsg db "Item Name: ",13,10
-    newItemStockMsg db "Stock Amount: ", 13,10
-    successNewItemMsg db " added successfully", 13,10
 
 
 
