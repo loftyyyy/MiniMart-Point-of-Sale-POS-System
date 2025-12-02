@@ -1105,7 +1105,31 @@ include C:\masm32\include\masm32rt.inc
 
     AddNewItem ENDP
 
+    ; ========================================
+    ; Display Inventory
+    ; ========================================
 
+    DisplayInventory PROC
+        LOCAL itemNum:DWORD, itemOffset:DWORD
+        LOCAL itemPrice:DWORD, itemStock:DWORD
+
+        ;Display inventory header
+        push offset inventoryHeader
+        call StdOut
+
+        ; get current item count
+        mov eax, currentItemcount
+        cmp eax, 0
+        je no_items_inv
+        
+        mov itemNum, 0
+        
+        inv_loop:
+            
+        
+
+
+    DisplayInventory ENDP
 
 
 
