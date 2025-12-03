@@ -1144,15 +1144,32 @@ include C:\masm32\include\masm32rt.inc
         mov eax, [esi + NAME_SIZE + 4]
         mov itemStock, eax
 
+        ; Display Item
+        invoke StdOut, chr$("ID: ")
+        mov eax, itemNum
+        inc eax
+        invoke StdOut, str$(eax)
+        invoke StdOut, chr$(" | Name: ")
+        invoke StdOut, esi
+        invoke StdOut, chr$(" | Price: ₱")
+        invoke StdOut, str$(itemPrice)
+        invoke StdOut, chr$(" | Stock: ")
+        invoke StdOut, str$(itemStock)
+        invoke StdOut, chr$(13,10)
         
+        inc itemNum
+        jmp inv_loop
 
         
+    no_items_inv:
+        push offset noItemsMsg
+        call StdOut
+        
+    inv_done
+        invoke StdOut, chr$(13,10)
+        ret
         
         
-            
-        
-
-
     DisplayInventory ENDP
 
 
