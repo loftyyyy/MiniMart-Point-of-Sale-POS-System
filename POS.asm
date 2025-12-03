@@ -254,9 +254,11 @@ include C:\masm32\include\masm32rt.inc
             cmp eax, 1
             je start_inventory
             cmp eax, 2
-            je start_summary
+            je start_add_item
             cmp eax, 3
             je start_pos
+            cmp eax, 4
+            je exit_program
              
         invalid_selection_input_minimart:
             push offset invalidSelectionMsg
@@ -268,59 +270,18 @@ include C:\masm32\include\masm32rt.inc
             call StdOut
             jmp read_option
 
-    start_inventory:
+    start_inventory:     
+        call DisplayInventory
+        invoke crt_system, chr$("pause")
+        invoke crt_system, addr clsCmd
+        jmp option_loop
         
-        inventory_loop:
-            ; ==== Dislay inventory menu ====
-            push offset inventoryOption
-            call StdOut
-            
-        read_inventory_item:
-            ; ==== Read and store user selection ====
-            push 32
-            push offset inputBuf
-            call StdIn
-            
-            ; ==== Check if input is empty ====
-            cmp byte ptr [inputBuf], 0
-            je invalid_inventory_selection_input
-
-            ; ==== Convert input to int ====
-            push offset inputBuf
-            call atodw ; converts string to int
-            jc invalid_type_input ; Jumps if input is not a number
-            
-            mov itemIdx, eax
-            
-            ; ==== Validate user input (0-3) ====
-            cmp eax, 0
-            jl invalid_inventory_selection_input
-            cmp eax, 3
-            jg invalid_inventory_selection_input
-
-            ; ==== go to selection ====
-            cmp eax, 0
-            je start_minimart
-            
-            cmp eax, 1
-            je new_item
-            
-            cmp eax, 2
-            
-
-
-        new_item:
-            ;==== New item msg ====
-            push offset newItemMsg
-            call StdOut
-            
-            ;==== Read and Store Msg
-            push 32
-            push offset inputBuf
-            call StdIn
-            
-            
-
+        start_add_item:
+            call AddNewItem
+            invoke crt_system, chr$("pause")
+            invoke crt_system, addr clsCmd
+            jmp option_loop
+        
 
     start_summary:
 
@@ -335,9 +296,8 @@ include C:\masm32\include\masm32rt.inc
         
         item_loop:
             
-            ; ==== Display Menu ====;
-            push offset textMenu
-            call StdOut
+            ; ==== Display Dynamic Menu ====;
+            call DisplayDynamicMenu
 
         read_item: 
             ; ===== Read and Store item number =====
@@ -355,10 +315,11 @@ include C:\masm32\include\masm32rt.inc
             jc invalid_type_input ; Jumps if input is not a number
             mov itemIdx, eax
      
-            ; ===== Validate input (1-10) =====
+            ; ===== Validate against current item count =====
             cmp eax, 1
             jl invalid_selection_input
-            cmp eax, 10
+            mov ebx, currentItemCount
+            cmp eax, ebx
             jg invalid_selection_input
 
             ; ==== Convert user selection to 0 based index ====
