@@ -54,7 +54,7 @@ include C:\masm32\include\masm32rt.inc
 
     ; ==== Inventory Display ====
     inventoryHeader db 13,10,"========= Current Inventory =========",13,10,0
-    inventoryLine db "ID: ",0
+    inventoryNum db "ID: ",0
     nameLabel db " | Name: ",0
     priceLabel db " | Price: ₱",0
     stockLabel db " | Stock: ",0
@@ -69,12 +69,13 @@ include C:\masm32\include\masm32rt.inc
                   db "    \________\________| |____|_  /\______  / \____|__  /__|___|  /__|__|_|  (____  /__|   |__|  ",13,10
                   db "                               \/        \/          \/        \/         \/     \/              ",13,10,0
 
-    ; ==== Minimart Option ====
+    ;==== Minimart Option ====
     minimartOption db 13,10,"========= JJRC Minimart =========",13,10
-                   db "1. Inventory",13,10
-                   db "2. Summary",13,10
-                   db "3. POS", 13,10, 13,10
-                   db "Selection [1-3]: ", 0
+                   db "1. View Inventory",13,10
+                   db "2. Add New Item",13,10
+                   db "3. POS (Point of Sale)", 13,10
+                   db "4. Exit", 13,10, 13,10
+                   db "Selection [1-4]: ", 0
 
 
 
@@ -211,9 +212,13 @@ include C:\masm32\include\masm32rt.inc
 .code
 
     start_minimart: 
-        ; ==== Clear Console Screen ====
+        ; ==== Load inventory at startup ====
+        call LoadInventory 
 
+
+        ; ==== Clear Console Screen ====
         invoke crt_system, addr clsCmd
+
         ; ==== Display JJRC Minimart Art ====;
         push offset jjrcMinimartArt
         call StdOut
@@ -1145,16 +1150,29 @@ include C:\masm32\include\masm32rt.inc
         mov itemStock, eax
 
         ; Display Item
-        invoke StdOut, chr$("ID: ")
+        push offset inventoryNum
+        call StdOut
+
         mov eax, itemNum
         inc eax
         invoke StdOut, str$(eax)
-        invoke StdOut, chr$(" | Name: ")
+        
+        ; Display item name
+        push offset nameLabel
+        call StdOut
         invoke StdOut, esi
-        invoke StdOut, chr$(" | Price: ₱")
+
+        ; Display item price
+        push offset priceLabel
+        call StdOut
         invoke StdOut, str$(itemPrice)
-        invoke StdOut, chr$(" | Stock: ")
+        
+        ;Display item stock
+        push offset stockLabel
+        call StdOut 
         invoke StdOut, str$(itemStock)
+
+        ;New line
         invoke StdOut, chr$(13,10)
         
         inc itemNum
