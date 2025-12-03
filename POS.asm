@@ -32,7 +32,7 @@ include C:\masm32\include\masm32rt.inc
     NAME_SIZE equ 32    ; 32 bytes for each item name
 
     itemDatabase db MAX_ITEMS * ITEM_SIZE dup(0)
-    currentItemcount DWORD 10 ;Default with 10 items
+    currentItemCount DWORD 10 ;Default with 10 items
 
     ;==== File Names ====
     inventoryFileName db "inventory.dat", 0
@@ -48,9 +48,9 @@ include C:\masm32\include\masm32rt.inc
                 db "Enter item details:", 13,10, 0
     namePrompt db "Item Name: ",0
     pricePrompt db "Price (₱): ",0
-    stockPrompt db "Initial Stock: ", 0
+    initialStockPrompt db "Initial Stock: ", 0
     itemAddedMsg db "Item added succesffully!",13,10,0
-    inventoryFullMsg db "Inventory is full! Cannot add more items!"13,10,0
+    inventoryFullMsg db "Inventory is full! Cannot add more items!",13,10,0
 
     ; ==== Inventory Display ====
     inventoryHeader db 13,10,"========= Current Inventory =========",13,10,0
@@ -122,6 +122,18 @@ include C:\masm32\include\masm32rt.inc
              db  "10. Egg        - ₱8", 13,10,13,10
              db  "Selection [1-10]: ", 0
 
+    ; ==== Default Items ====
+    str_Coffee db "Coffee",0
+    str_Donut db "Donut",0
+    str_Sandwich db "Sandwich",0
+    str_Milk db "Milk",0
+    str_Bread db "Bread",0
+    str_Chips db "Chips",0
+    str_Soda db "Soda",0
+    str_Juice db "Juice",0
+    str_Candy db "Candy",0
+    str_Egg db "Egg",0
+
     qtyPrompt db "Enter Quantity: ", 0
     anotherMsg db "Add another item? (Y/N): ",0 
     paymentMsg db 13,10,"Payment Amount:   ₱",0
@@ -173,7 +185,7 @@ include C:\masm32\include\masm32rt.inc
     outOfStockMsg db "Sorry, this item is out of stock!", 13,10,0
     insufficientStockMsg db "Insufficient stock! Only ",0
     availableMsg db " available", 13, 10, 0
-    stockPrompt db " (Stock: ",0
+    stockDisplayPrompt db " (Stock: ",0
     closeParen db ")", 0
 
 
@@ -206,15 +218,23 @@ include C:\masm32\include\masm32rt.inc
 
     ; some command for the clear screen
     clsCmd db "cls", 0
+    
+    ; ==== Menu Display Buffers ====
+    menuHeader db "========= MiniMart POS System =========", 13,10,13,10,0
+    menuLine db 64 dup(0)
 
 
 
 .code
 
     start_minimart: 
+        invoke StdOut, chr$("Program starting...",13,10)
+        invoke Sleep, 2000  ; Wait 2 seconds
         ; ==== Load inventory at startup ====
         call LoadInventory 
 
+        invoke StdOut, chr$("LoadInventory completed...",13,10)
+        invoke Sleep, 2000
 
         ; ==== Clear Console Screen ====
         invoke crt_system, addr clsCmd
@@ -245,10 +265,10 @@ include C:\masm32\include\masm32rt.inc
             jc invalid_type_input_minimart ; Jumps if input is not a number
             mov optionIdx, eax
             
-            ; ==== Validate input (1-3) ====
+            ; ==== Validate input (1-4) ====
             cmp eax, 1
             jl invalid_selection_input_minimart
-            cmp eax, 3
+            cmp eax, 4
             jg invalid_selection_input_minimart
 
             cmp eax, 1
@@ -326,22 +346,29 @@ include C:\masm32\include\masm32rt.inc
             dec eax
             mov itemIdx, eax
 
-            ; ==== Fetch Price based on user selection ====
-            mov ebx, itemIdx
-            mov eax, priceTable[ebx*4]
+            ; ==== Calculate Item offset ====
+            mov ebx, ITEM_SIZE
+            mul ebx
+            
+
+            ; ==== Get Item data ====
+            lea esi, itemDatabase
+            add esi, eax
+
+            ; ==== Get price and stock ====
+            mov eax, [esi + NAME_SIZE]
             mov price, eax
-
-            ; ==== Check if item is in stock ====
-            ; TODO: To be implemented
-            mov ebx, itemIdx
-            mov eax, stockTable[ebx*4]
-
+            mov eax, [esi + NAME_SIZE + 4]
+            
+            ; ==== Check stock ====
             cmp eax, 0
             je out_of_stock_error
             
             mov stock, eax
+
             
 
+    
             
 
         ; ==== Ask for item quantity and store it ====
@@ -384,14 +411,12 @@ include C:\masm32\include\masm32rt.inc
             cmp eax, 0
             jle invalid_quantity_input
             
-            ; ==== Check if requested quantity exceeds available stock ====
-            mov ebx, itemIdx
-            mov ecx, stockTable[ebx*4] ; Gets current stock
-            cmp eax, ecx
-            jg insufficient_stock_error
-            
-
             mov quantity, eax
+            
+            ; ==== Check if quantity exceeds available stock ====
+            mov ebx, stock
+            cmp eax, ebx
+            jg insufficient_stock_error
 
             ; ==== Compute item subtotal ====
             mov eax, price
@@ -413,15 +438,26 @@ include C:\masm32\include\masm32rt.inc
             mov ebx, itemTotal
             mov receiptTotals[eax*4],ebx
             
+
+            ; ==== Decrease Stock in database (persistence) ====
+            mov eax, itemIdx
+            mov ebx, ITEM_SIZE
+            mul ebx
+            lea esi, itemDatabase
+            add esi, eax
+            add esi, NAME_SIZE
+            add esi, 4  ; Skip to stock field
+
+            mov eax, [esi]
+            sub eax, quantity
+            mov [esi], eax
+
+            ; ==== Save inventory ====
+            call SaveInventory
+
+
             ;==== Increase Item Count ====
             inc itemCount
-
-            ; ==== Decrease Stock ====
-            mov eax, itemIdx
-            mov ebx, quantity
-            mov ecx, stockTable[eax*4]
-            sub ecx, ebx
-            mov stockTable[eax*4], ecx
             
             ; ==== Ask if user wants another item ====
             push offset anotherMsg
@@ -589,50 +625,49 @@ include C:\masm32\include\masm32rt.inc
         print_items:
             cmp esi, itemCount
             jge print_totals
-
-            ; ==== Print "Item " ====
+            
+            ; ==== Get item index ====
+            mov eax, receiptItems[esi*4]
+            
+            ; ==== Calculate item offset in database ====
+            mov ebx, ITEM_SIZE
+            mul ebx
+            lea edi, itemDatabase
+            add edi, eax
+            
+            ; ==== Print item number ====
             push offset itemText
             call StdOut
-            
-            ; ==== Print Item Number ====
             mov eax, esi
             inc eax
             invoke StdOut, str$(eax)
-            
-            ; ==== Print ": " ====
             push offset colonText
             call StdOut
-
-            ; ==== Print Item Name ====
-            mov eax, receiptItems[esi*4]
-            mov ebx, 10
-            mul ebx
-            lea ebx, itemNames
-            add ebx, eax
-            invoke StdOut, ebx
             
-            ; ==== Print Quantity Of the Item ====
+            ; ==== Print item name from database ====
+            invoke StdOut, edi
+            
+            ; ==== Print quantity ====
             push offset priceText
             call StdOut
             invoke StdOut, str$(receiptQtys[esi*4])
             
-            ; ==== Print Price Of the Item ====
+            ; ==== Print price ====
             push offset atText
             call StdOut
-            mov eax, receiptItems[esi*4]
-            mov ebx, priceTable[eax*4]
-            invoke StdOut, str$(ebx)
-
-            ; ==== Print Item Total ====
+            mov eax, [edi + NAME_SIZE]  ; Get price from database
+            invoke StdOut, str$(eax)
+            
+            ; ==== Print total ====
             push offset equalText
             call StdOut
             invoke StdOut, str$(receiptTotals[esi*4])
             invoke StdOut, chr$(13,10)
-
-            ; ==== Increase count ====
+            
+            ;==== Increase item count ====
             inc esi
 
-            ; ==== Loop back to print_items label ====
+            ; ==== continue loop ====
             jmp print_items
 
 
@@ -687,7 +722,7 @@ include C:\masm32\include\masm32rt.inc
 
         out_of_stock_error:
             push offset outOfStockMsg
-            call StdIn
+            call StdOut
 
             jmp item_loop
 
@@ -709,7 +744,7 @@ include C:\masm32\include\masm32rt.inc
             push offset invalidSelectionMsg
             call StdOut
             
-            jmp read_inventory_item
+            jmp read_item
             
         invalid_selection_input:
             push offset invalidSelectionMsg
@@ -751,67 +786,88 @@ include C:\masm32\include\masm32rt.inc
     InitializeDefaultItems PROC
         LOCAL itemOffset:DWORD
         
-
+        ; Zero out database first
+        invoke RtlZeroMemory, addr itemDatabase, MAX_ITEMS * ITEM_SIZE
+        
         ;Item 0: Coffee
         mov itemOffset, 0
-        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Coffee")
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 39 ; item Price
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 50 ; item Stock
-
+        lea esi, itemDatabase
+        invoke lstrcpy, esi, addr str_Coffee
+        mov DWORD PTR [esi + NAME_SIZE], 39
+        mov DWORD PTR [esi + NAME_SIZE + 4], 50
+        
         ;Item 1: Donut
         add itemOffset, ITEM_SIZE
-        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Donut")
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 12 ; item Price
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 100 ; item Stock
+        lea esi, itemDatabase
+        add esi, itemOffset
+        invoke lstrcpy, esi, addr str_Donut
+        mov DWORD PTR [esi + NAME_SIZE], 12
+        mov DWORD PTR [esi + NAME_SIZE + 4], 100
         
         ;Item 2: Sandwich
         add itemOffset, ITEM_SIZE
-        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Sandwich")
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 15 ; item Price
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 75 ; item Stock
-    
+        lea esi, itemDatabase
+        add esi, itemOffset
+        invoke lstrcpy, esi, addr str_Sandwich
+        mov DWORD PTR [esi + NAME_SIZE], 15
+        mov DWORD PTR [esi + NAME_SIZE + 4], 75
+        
         ;Item 3: Milk
         add itemOffset, ITEM_SIZE
-        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Milk")
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 50 ; item Price
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 40 ; item Stock
-
+        lea esi, itemDatabase
+        add esi, itemOffset
+        invoke lstrcpy, esi, addr str_Milk
+        mov DWORD PTR [esi + NAME_SIZE], 50
+        mov DWORD PTR [esi + NAME_SIZE + 4], 40
+        
         ;Item 4: Bread
         add itemOffset, ITEM_SIZE
-        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Bread")
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 25 ; item Price
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 60 ; item Stock
-
+        lea esi, itemDatabase
+        add esi, itemOffset
+        invoke lstrcpy, esi, addr str_Bread
+        mov DWORD PTR [esi + NAME_SIZE], 25
+        mov DWORD PTR [esi + NAME_SIZE + 4], 60
+        
         ;Item 5: Chips
         add itemOffset, ITEM_SIZE
-        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Chips")
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 30 ; item Price
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 80 ; item Stock
-
+        lea esi, itemDatabase
+        add esi, itemOffset
+        invoke lstrcpy, esi, addr str_Chips
+        mov DWORD PTR [esi + NAME_SIZE], 30
+        mov DWORD PTR [esi + NAME_SIZE + 4], 80
+        
         ;Item 6: Soda
         add itemOffset, ITEM_SIZE
-        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Soda")
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 20 ; item Price
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 90 ; item Stock
-
+        lea esi, itemDatabase
+        add esi, itemOffset
+        invoke lstrcpy, esi, addr str_Soda
+        mov DWORD PTR [esi + NAME_SIZE], 20
+        mov DWORD PTR [esi + NAME_SIZE + 4], 90
+        
         ;Item 7: Juice
         add itemOffset, ITEM_SIZE
-        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Juice")
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 15 ; item Price
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 70 ; item Stock
-
+        lea esi, itemDatabase
+        add esi, itemOffset
+        invoke lstrcpy, esi, addr str_Juice
+        mov DWORD PTR [esi + NAME_SIZE], 15
+        mov DWORD PTR [esi + NAME_SIZE + 4], 70
+        
         ;Item 8: Candy
         add itemOffset, ITEM_SIZE
-        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Candy")
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 5 ; item Price
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 150 ; item Stock
-    
+        lea esi, itemDatabase
+        add esi, itemOffset
+        invoke lstrcpy, esi, addr str_Candy
+        mov DWORD PTR [esi + NAME_SIZE], 5
+        mov DWORD PTR [esi + NAME_SIZE + 4], 150
+        
         ;Item 9: Egg
         add itemOffset, ITEM_SIZE
-        invoke lstrcpy, addr itemDatabase[itemOffset], chr$("Egg")
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE], 8 ; item Price
-        mov DWORD PTR itemDatabase[itemOffset + NAME_SIZE + 4], 120 ; item Stock
-
+        lea esi, itemDatabase
+        add esi, itemOffset
+        invoke lstrcpy, esi, addr str_Egg
+        mov DWORD PTR [esi + NAME_SIZE], 8
+        mov DWORD PTR [esi + NAME_SIZE + 4], 120
+        
         mov currentItemCount, 10
         ret
 
@@ -824,7 +880,7 @@ include C:\masm32\include\masm32rt.inc
         LOCAL bytesToRead:DWORD
         
         ;Trying to open inventory file
-        invoke CreateFile, addr inventoryFileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRUBTE_NORMAL, NULL
+        invoke CreateFile, addr inventoryFileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL
 
         cmp eax, INVALID_HANDLE_VALUE
         je load_default
@@ -833,20 +889,61 @@ include C:\masm32\include\masm32rt.inc
         ; Read item count first
         invoke ReadFile, fileHandle, addr currentItemCount, 4, addr bytesRead, NULL
         
-        ; Calculate bytes to read for al items
+        ; Check if ReadFile failed or read 0 bytes (empty file)
+        test eax, eax
+        jz load_default_close
+        cmp bytesRead, 0
+        je load_default_close
+        
+        ; Validate that we read exactly 4 bytes
+        cmp bytesRead, 4
+        jne load_default_close
+        
+        ; Validate that currentItemCount is reasonable (1 to MAX_ITEMS)
+        mov eax, currentItemCount
+        cmp eax, 0
+        jle load_default_close
+        cmp eax, MAX_ITEMS
+        jg load_default_close
+        
+        ; Calculate bytes to read for all items
         mov eax, currentItemCount
         mov ebx, ITEM_SIZE
         mul ebx
         mov bytesToRead, eax
 
         ; Read all items
-        invoke ReadFile, fileHandle, addr itemDatabase, bytesToRead, add bytesRead, Null
+        invoke ReadFile, fileHandle, addr itemDatabase, bytesToRead, addr bytesRead, NULL
+        
+        ; Check if ReadFile failed
+        test eax, eax
+        jz load_default_close
+        
+        ; Validate that we read the expected number of bytes
+        mov eax, bytesToRead
+        cmp bytesRead, eax
+        jne load_default_close
 
         invoke CloseHandle, fileHandle
         ret
         
+        load_default_close:
+            cmp fileHandle, INVALID_HANDLE_VALUE
+            je load_default
+            invoke CloseHandle, fileHandle
+            mov fileHandle, 0  ; Clear the handle
+            
         load_default:
+            ; Initialize default items
             call InitializeDefaultItems
+            
+            ; Only save if we have valid items
+            mov eax, currentItemCount
+            cmp eax, 0
+            jle load_inventory_done
+            call SaveInventory  ; Save defaults to file so they persist
+            
+        load_inventory_done:
             ret
     
 
@@ -857,34 +954,40 @@ include C:\masm32\include\masm32rt.inc
     ; ========================================
     ; Save Inventory to File
     ; ========================================   
-
     SaveInventory PROC
         LOCAL bytesToWrite:DWORD
 
         invoke CreateFile, addr inventoryFileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL
-    cmp eax, INVALID_HANDLE_VALUE
-    je save_failed
-    mov fileHandle, eax
+        cmp eax, INVALID_HANDLE_VALUE
+        je save_failed
+        mov fileHandle, eax
 
-    ; Write item count first since it is what we are reading first
-    invoke WriteFile, fileHandle, addr currentItemCount, 4, addr bytesWritten, NULL
+        ; Write item count first
+        invoke WriteFile, fileHandle, addr currentItemCount, 4, addr bytesWritten, NULL
+        test eax, eax  ; Check if WriteFile succeeded
+        jz save_error_close
 
-    ;Calculate bytes to write
-    mov eax, currentItemCount
-    mov ebx, ITEM_SIZE
-    mul ebx
-    mov bytesToWrite, eax
+        ; Calculate bytes to write
+        mov eax, currentItemCount
+        mov ebx, ITEM_SIZE
+        mul ebx
+        mov bytesToWrite, eax
 
-    ;Write all items
-    invoke WriteFile, fileHandle, addr itemDatabase, bytesToWrite, addr bytesWritten, NULL
+        ; Write all items
+        invoke WriteFile, fileHandle, addr itemDatabase, bytesToWrite, addr bytesWritten, NULL
+        test eax, eax  ; Check if WriteFile succeeded
+        jz save_error_close
 
-    invoke CloseHandle, fileHandle
-    ret
+        invoke CloseHandle, fileHandle
+        ret
+
+    save_error_close:
+        invoke CloseHandle, fileHandle  ; Close handle before showing error
 
     save_failed:
         push offset fileSaveErrorMsg
-
-    
+        call StdOut
+        ret
 
     SaveInventory ENDP
     
@@ -901,7 +1004,7 @@ include C:\masm32\include\masm32rt.inc
 
 
         ; Check if there are any items
-        mov eax, currentItemcount
+        mov eax, currentItemCount
         cmp eax, 0
         je no_items
         
@@ -1005,7 +1108,7 @@ include C:\masm32\include\masm32rt.inc
         ;Get item Stock
         get_stock:
             ; Display stock prompt
-            push offset stockPrompt
+            push offset initialStockPrompt
             call StdOut
             
             ;input
@@ -1084,7 +1187,7 @@ include C:\masm32\include\masm32rt.inc
         call StdOut
 
         ; get current item count
-        mov eax, currentItemcount
+        mov eax, currentItemCount
         cmp eax, 0
         je no_items_inv
         
@@ -1102,7 +1205,7 @@ include C:\masm32\include\masm32rt.inc
         mov itemOffset, eax
 
         ; get item data
-        lea esi itemDatabase
+        lea esi, itemDatabase
         add esi, itemOffset
         
         mov eax, [esi + NAME_SIZE]
@@ -1144,7 +1247,7 @@ include C:\masm32\include\masm32rt.inc
         push offset noItemsMsg
         call StdOut
         
-    inv_done
+    inv_done:
         invoke StdOut, chr$(13,10)
         ret
         
@@ -1152,13 +1255,14 @@ include C:\masm32\include\masm32rt.inc
     DisplayInventory ENDP
 
 
-
-
     end start_minimart
     ;TODO: CLS every new item - Done
-    ; put Stocks on items
-    ; add item
+    ; put Stocks on items - Done
+    ; add item - Done
     ; dashboard
     ; Feature improvements:
-    ;   Persistence
-    ;   create a file for each receipt
+    ;   Persistence - Done
+    ;   create a file for each receipt - WIP
+    ;Things that I've found
+    ;-> stock is instantly decreased when trying to add a new item
+    ;-> 
