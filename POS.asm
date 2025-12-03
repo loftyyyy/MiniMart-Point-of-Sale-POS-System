@@ -1125,6 +1125,30 @@ include C:\masm32\include\masm32rt.inc
         mov itemNum, 0
         
         inv_loop:
+        mov eax, itemNum
+        cmp eax, currentItemCount
+        jge inv_done
+        
+        ; Calculate offset
+        mov eax, itemNum
+        mov ebx, ITEM_SIZE
+        mul ebx
+        mov itemOffset, eax
+
+        ; get item data
+        lea esi itemDatabase
+        add esi, itemOffset
+        
+        mov eax, [esi + NAME_SIZE]
+        mov itemPrice, eax
+        mov eax, [esi + NAME_SIZE + 4]
+        mov itemStock, eax
+
+        
+
+        
+        
+        
             
         
 
