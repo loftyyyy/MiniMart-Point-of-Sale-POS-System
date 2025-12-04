@@ -1303,7 +1303,80 @@ include C:\masm32\include\masm32rt.inc
             cmp eax, 0
             je update_cancelled
 
+            mov itemID, eax
+
+            ; validate item id input range 
+            cmp eax, 1
+            jl ivnalid_item_id
+            mov ebx, currentItemCount
+            cmp eax, ebx
+            jg invalid_item_id
+
+            ; convert user input to 0 based index so I can start changing the database
+            dec eax
+
+            ; calculate item offset -> this is where the calculations takes place
+            mov ebx, ITEM_SIZE
+            mul ebx
+            mov itemOffset, eax
             
+
+        get_new_stock:
+            ; display prompt for new stoc
+            push offset newStockPrompt
+            call StdOut
+            
+            ; get user input
+            push 32
+            push offset inputBuf
+            call StdIn
+
+            ; validate user input, check if input is empty
+            cmp byte ptr [inputBuf], 0
+            je get_new_stock
+            
+            ; convert input to int using atodw
+            push offset inputBuf
+            call atodw
+            fc get_new_stock
+            
+            ;validate stock if it's >= 0
+            cmp eax, 0
+            jl get_new_stock
+            
+            mov newStock, eax
+            
+            ;update stock in database
+            lea esi, itemDatabase
+            add esi, itemOffset
+            add esi, NAME_SIZE
+            add esi, 4
+
+            mov eax, newStock
+            mov [esi], eax; -> Sets the new stock value
+            
+            ; save new stock to inventory
+            call SaveInventory
+
+            ; Display success message
+            push offset stockUpdateMsg
+            call StdOut
+            ret
+            
+        invalid_item_id:
+            push offset invalidSelectionMsg
+            call StdOut
+            jmp get_item_id
+            
+        update_cancelled:
+            push offset updateCancelledMsg
+            call StdOut
+            ret
+            
+        no_items_to_update:
+            push offset noItemsMsg
+            call StdOut
+            ret
             
         
         
