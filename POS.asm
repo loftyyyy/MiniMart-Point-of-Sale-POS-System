@@ -64,9 +64,10 @@ include C:\masm32\include\masm32rt.inc
     minimartOption db 13,10,"========= JJRC Minimart =========",13,10
                    db "1. View Inventory",13,10
                    db "2. Add New Item",13,10
-                   db "3. POS (Point of Sale)", 13,10
-                   db "4. Exit", 13,10, 13,10
-                   db "Selection [1-4]: ", 0
+                   db "3. Update Item Stock",13,10
+                   db "4. POS (Point of Sale)", 13,10
+                   db "5. Exit", 13,10, 13,10
+                   db "Selection [1-5]: ", 0
 
 
 
@@ -257,7 +258,6 @@ include C:\masm32\include\masm32rt.inc
             call StdOut
         
         read_option:
-        
             ; ==== Read and store user input ====
             push 32
             push offset inputBuf
@@ -269,14 +269,14 @@ include C:\masm32\include\masm32rt.inc
 
             ; ==== Convert input to int ====
             push offset inputBuf
-            call atodw ; converts string to int
-            jc invalid_type_input_minimart ; Jumps if input is not a number
+            call atodw
+            jc invalid_type_input_minimart
             mov optionIdx, eax
             
-            ; ==== Validate input (1-4) ====
+            ; ==== Validate input (1-5) ====
             cmp eax, 1
             jl invalid_selection_input_minimart
-            cmp eax, 4
+            cmp eax, 5
             jg invalid_selection_input_minimart
 
             cmp eax, 1
@@ -284,8 +284,10 @@ include C:\masm32\include\masm32rt.inc
             cmp eax, 2
             je start_add_item
             cmp eax, 3
-            je start_pos
+            je start_update_stock
             cmp eax, 4
+            je start_pos
+            cmp eax, 5
             je exit_program
              
         invalid_selection_input_minimart:
@@ -309,7 +311,12 @@ include C:\masm32\include\masm32rt.inc
             invoke crt_system, chr$("pause")
             invoke crt_system, addr clsCmd
             jmp option_loop
-        
+
+        start_update_stock:
+            call UpdateItemStock
+            invoke crt_system, chr$("pause")
+            invoke crt_system, addr clsCmd
+            jmp option_loop
 
     start_summary:
 
@@ -1292,7 +1299,7 @@ include C:\masm32\include\masm32rt.inc
 
             ; validate input
             cmp byte ptr [inputBuf], 0
-            je_get_item_id 
+            je get_item_id 
 
             ; convert user input to int using atodw
             push offset inputBuf
@@ -1307,7 +1314,7 @@ include C:\masm32\include\masm32rt.inc
 
             ; validate item id input range 
             cmp eax, 1
-            jl ivnalid_item_id
+            jl invalid_item_id
             mov ebx, currentItemCount
             cmp eax, ebx
             jg invalid_item_id
@@ -1338,7 +1345,7 @@ include C:\masm32\include\masm32rt.inc
             ; convert input to int using atodw
             push offset inputBuf
             call atodw
-            fc get_new_stock
+            jc get_new_stock
             
             ;validate stock if it's >= 0
             cmp eax, 0
@@ -1353,13 +1360,15 @@ include C:\masm32\include\masm32rt.inc
             add esi, 4
 
             mov eax, newStock
+            mov ebx, [esi]
+            add eax, ebx
             mov [esi], eax; -> Sets the new stock value
             
             ; save new stock to inventory
             call SaveInventory
 
             ; Display success message
-            push offset stockUpdateMsg
+            push offset stockUpdatedMsg
             call StdOut
             ret
             
@@ -1379,8 +1388,7 @@ include C:\masm32\include\masm32rt.inc
             ret
             
         
-        
-
+    
     UpdateItemStock ENDP
     
         
