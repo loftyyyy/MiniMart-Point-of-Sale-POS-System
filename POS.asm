@@ -1261,6 +1261,58 @@ include C:\masm32\include\masm32rt.inc
         
     DisplayInventory ENDP
 
+    ; ========================================
+    ; Update Item Stock
+    ; ========================================
+    UpdateItemStock PROC
+        LOCAL itemID:DWORD, itemOffset:DWORD
+        LOCAL newStock:DWORD
+
+        ; check if inventory is empty
+        mov eax, currentItemCount
+        cmp eax, 0
+        je no_items_to_update
+
+        ; display current inventory first so that the user can pick which item it wants to update
+        call DisplayInventory
+        
+        ; display update menu
+        push offset updateStockMenu
+        call StdOut
+
+        get_item_id:
+            ;display prompt for item id
+            push offset selectItemPrompt
+            call StdOut
+
+            ; get user input
+            push 32
+            push offset inputBuf
+            call StdIn
+
+            ; validate input
+            cmp byte ptr [inputBuf], 0
+            je_get_item_id 
+
+            ; convert user input to int using atodw
+            push offset inputBuf
+            call atodw
+            jc get_item_id
+            
+            ; Check for cancel (0)
+            cmp eax, 0
+            je update_cancelled
+
+            
+            
+        
+        
+
+    UpdateItemStock ENDP
+    
+        
+
+
 
     end start_minimart
 
