@@ -20,7 +20,6 @@ include C:\masm32\include\masm32rt.inc
     localTime LPSYSTEMTIME <>
 
     ; ==== File handling ====
-    stockFileName db "stock.dat", 0
     fileHandle DWORD ?
     bytesRead DWORD ?
     bytesWritten DWORD ?
@@ -36,21 +35,13 @@ include C:\masm32\include\masm32rt.inc
 
     ;==== File Names ====
     inventoryFileName db "inventory.dat", 0
-    configFileName db "config.dat",0
+    summaryFileName db "summary.dat", 0
 
     ; ==== Temporary buffers for item operations ====
     tempName db NAME_SIZE dup(0)
     tempPrice DWORD ?
     tempStock DWORD ?
 
-    ; ===== Add Item menu and messages ====
-    addItemMenu db 13,10,"========= Add New Item =========",13,10
-                db "Enter item details:", 13,10, 0
-    namePrompt db "Item Name: ",0
-    pricePrompt db "Price (₱): ",0
-    initialStockPrompt db "Initial Stock: ", 0
-    itemAddedMsg db "Item added succesffully!",13,10,0
-    inventoryFullMsg db "Inventory is full! Cannot add more items!",13,10,0
 
     ; ==== Inventory Display ====
     inventoryHeader db 13,10,"========= Current Inventory =========",13,10,0
@@ -108,7 +99,7 @@ include C:\masm32\include\masm32rt.inc
                      db 0
     
     
-    ; ==== Menu Text ====
+    ; ==== Menu Text ==== -> Obsolete, will delete later
     textMenu db "========= MiniMart POS System =========", 13,10,13,10
              db  "1. Coffee      - ₱39", 13,10
              db  "2. Donut       - ₱12", 13,10
@@ -145,16 +136,16 @@ include C:\masm32\include\masm32rt.inc
     timeText db "   Time: ",0
     dateTimeBuf db 64 dup(0)
     itemText db "Item ",0
-    itemNames db "Coffee", 0,0,0,0     ; 6 chars + 4 nulls = 10 bytes (Index 0)
-              db "Donut", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 1)
-              db "Sandwich", 0,0       ; 8 chars + 2 nulls = 10 bytes (Index 2)
-              db "Milk", 0,0,0,0,0,0   ; 4 chars + 6 nulls = 10 bytes (Index 3)
-              db "Bread", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 4)
-              db "Chips", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 5)
-              db "Soda", 0,0,0,0,0,0   ; 4 chars + 6 nulls = 10 bytes (Index 6)
-              db "Juice", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 7)
-              db "Candy", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 8)
-              db "Egg", 0,0,0,0,0,0    ; 3 chars + 7 nulls = 10 bytes (Index 9)
+    itemNames db "Coffee", 0,0,0,0     ; 6 chars + 4 nulls = 10 bytes (Index 0)-> Obsolete since implemented dynamic menu items
+              db "Donut", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 1)-> Obsolete
+              db "Sandwich", 0,0       ; 8 chars + 2 nulls = 10 bytes (Index 2)-> Obsolete
+              db "Milk", 0,0,0,0,0,0   ; 4 chars + 6 nulls = 10 bytes (Index 3)-> Obsolete
+              db "Bread", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 4)-> Obsolete
+              db "Chips", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 5)-> Obsolete
+              db "Soda", 0,0,0,0,0,0   ; 4 chars + 6 nulls = 10 bytes (Index 6)-> Obsolete
+              db "Juice", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 7)-> Obsolete
+              db "Candy", 0,0,0,0,0    ; 5 chars + 5 nulls = 10 bytes (Index 8)-> Obsolete
+              db "Egg", 0,0,0,0,0,0    ; 3 chars + 7 nulls = 10 bytes (Index 9)-> Obsolete
     priceText db " x ", 0
     atText    db " @ ₱", 0
     equalText db " = ₱", 0
@@ -189,10 +180,19 @@ include C:\masm32\include\masm32rt.inc
     closeParen db ")", 0
 
 
-    ; ==== Prices ====
+    ; ===== Add Item menu and messages ====
+    addItemMenu db 13,10,"========= Add New Item =========",13,10
+                db "Enter item details:", 13,10, 0
+    namePrompt db "Item Name: ",0
+    pricePrompt db "Price (₱): ",0
+    initialStockPrompt db "Initial Stock: ", 0
+    itemAddedMsg db "Item added succesffully!",13,10,0
+    inventoryFullMsg db "Inventory is full! Cannot add more items!",13,10,0
+
+    ; ==== Prices ==== -> Obsolete
     priceTable DWORD 39, 12, 15, 50, 25, 30, 20, 15, 5, 8
 
-    ; ==== Stock ====
+    ; ==== Stock ==== -> Obsolete
     stockTable DWORD 10, 10, 10, 10, 10, 10, 10, 10, 10, 10
 
     ; ==== Buffers ====
@@ -718,7 +718,7 @@ include C:\masm32\include\masm32rt.inc
             push offset thankYouMsg
             call StdOut
             
-            jmp exit_program
+            jmp exit_program; -> Should I quit automatically or loop back to the menu?
 
         out_of_stock_error:
             push offset outOfStockMsg
@@ -738,7 +738,6 @@ include C:\masm32\include\masm32rt.inc
             
             jmp read_quantity
             
-
 
         invalid_inventory_selection_input:
             push offset invalidSelectionMsg
@@ -1256,13 +1255,16 @@ include C:\masm32\include\masm32rt.inc
 
 
     end start_minimart
+
     ;TODO: CLS every new item - Done
-    ; put Stocks on items - Done
-    ; add item - Done
-    ; dashboard
-    ; Feature improvements:
-    ;   Persistence - Done
-    ;   create a file for each receipt - WIP
-    ;Things that I've found
+    ;-> put Stocks on items - Done
+    ;->  add item - Done
+    ;-> Summary - WIP
+
+    ;TODO: Feature improvements:
+    ;-> Persistence - Done
+    ;->  create a file for each receipt - WIP
+
+    ;Things that I've found:
     ;-> stock is instantly decreased when trying to add a new item
     ;-> 
