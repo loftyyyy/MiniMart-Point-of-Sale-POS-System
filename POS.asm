@@ -180,6 +180,14 @@ include C:\masm32\include\masm32rt.inc
     closeParen db ")", 0
 
 
+    ; ==== Update Stock Messages ====
+    updateStockMenu db 13,10,"========= Update Item Stock =========",13,10,0
+    selectItemPrompt db "Enter item ID to update (0 to cancel): ",0
+    newStockPrompt db "Enter new stock quantity: ",0
+    stockUpdatedMsg db "Stock updated successfully!",13,10,0
+    updateCancelledMsg db "Update cancelled.",13,10,0
+
+
     ; ===== Add Item menu and messages ====
     addItemMenu db 13,10,"========= Add New Item =========",13,10
                 db "Enter item details:", 13,10, 0
