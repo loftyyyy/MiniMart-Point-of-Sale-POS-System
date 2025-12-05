@@ -1509,6 +1509,27 @@ include C:\masm32\include\masm32rt.inc
 
     RecordSale ENDP
 
+    ; ========================================
+    ; Save Sales Data to File
+    ; ========================================
+    SaveSalesData PROC
+        LOCAL bytesToWrite:DWORD
+        
+        ;create or read file if exists
+        invoke CreateFile, addr summaryFileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL
+        cmp eax, INVALID_HANDLE_VALUE
+        je save_sales_failed
+        mov fileHandle, eax
+
+        ; Write sales count
+        invoke WriteFile, fileHandle, addr currentSalesCount, 4, addr bytesWritten, NULL
+        test eax, eax
+        jz save_sales_error_close
+
+        
+
+    SaveSalesData ENDP
+
     end start_minimart
 
     ;TODO: CLS every new item - Done
