@@ -218,8 +218,10 @@ include C:\masm32\include\masm32rt.inc
     salesBreakdownMsg db 13,10,"--- Sales Breakdown by Item ---",13,10,0
     itemSalesLine db 64 dup(0)
     dashLine3 db "================================",13,10,0
-    recordFullMsg db "Sorry, summary file is full. Please move the current summary.dat to create a new empty one"
+    recordFullMsg db "Sorry, summary file is full. Please move the current summary.dat to create a new empty one",0
 
+    ; ==== Sales Messages ====
+    saveSalesFailMsg db "Something went wrong. Failed saving sales. Please try again", 0
     ; ==== Prices ==== -> Obsolete
     priceTable DWORD 39, 12, 15, 50, 25, 30, 20, 15, 5, 8
 
@@ -1526,9 +1528,59 @@ include C:\masm32\include\masm32rt.inc
         test eax, eax
         jz save_sales_error_close
 
-        
+        ; Calculate bytes to write
+        mov eax, currentSalesCount
+        mov ebx, SALE_RECORD_SIZE
+        mul ebx
+        mov bytesToWrite,eax
+
+        ; Write all sales records
+        invoke WriteFile, fileHandle, addr salesDatabase, bytesToWrite, addr bytesWritten, NULL
+        test eax, eax
+        jz save_sales_error_close       
+
+        invoke CloseHandle, fileHandle
+        ret
+
+        save_sales_error_close:
+            invoke CloseHandle, fileHandle
+
+        save_sales_failed:
+            push offset saveSalesFailMsg
+            call StdOut
+
+            ret
+
+
 
     SaveSalesData ENDP
+
+    ; ========================================
+    ; Load Sales Data from File
+    ; ========================================
+    LoadSalesData PROC
+        LOCAL bytesToRead:DWORD
+        
+        ; create or load file
+        invoke CreateFile, addr summaryFileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL
+        cmp eax, INVALID_HANDLE_VALUE
+        je load_sales_default
+        mov fileHandle, eax
+
+        ; Read sales count
+        invoke ReadFile, fileHandle, addr currentSalesCount, 4, addr bytesRead, NULL
+        test eax, eax
+        jz load_sales_default_close
+        cmp bytesRead, 4
+        jne load_sales_default_close
+
+
+
+
+
+    LoadSalesData ENDP
+
+
 
     end start_minimart
 
