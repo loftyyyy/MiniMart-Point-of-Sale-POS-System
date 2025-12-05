@@ -74,8 +74,9 @@ include C:\masm32\include\masm32rt.inc
                    db "2. Add New Item",13,10
                    db "3. Update Item Stock",13,10
                    db "4. POS (Point of Sale)", 13,10
-                   db "5. Exit", 13,10, 13,10
-                   db "Selection [1-5]: ", 0
+                   db "5. View Sales Summary", 13,10
+                   db "6. Exit", 13,10, 13,10
+                   db "Selection [1-6]: ", 0
 
 
 
@@ -217,6 +218,7 @@ include C:\masm32\include\masm32rt.inc
     salesBreakdownMsg db 13,10,"--- Sales Breakdown by Item ---",13,10,0
     itemSalesLine db 64 dup(0)
     dashLine3 db "================================",13,10,0
+    recordFullMsg db "Sorry, summary file is full. Please move the current summary.dat to create a new empty one"
 
     ; ==== Prices ==== -> Obsolete
     priceTable DWORD 39, 12, 15, 50, 25, 30, 20, 15, 5, 8
@@ -308,6 +310,8 @@ include C:\masm32\include\masm32rt.inc
             cmp eax, 4
             je start_pos
             cmp eax, 5
+            je start_summary
+            cmp eax, 6
             je exit_program
              
         invalid_selection_input_minimart:
@@ -339,6 +343,11 @@ include C:\masm32\include\masm32rt.inc
             jmp option_loop
 
     start_summary:
+        call DisplaySalesSummary
+        invoke crt_system, chr$("pause")
+        invoke crt_system, addr clsCmd
+        jmp option_loop
+        
 
     start_pos:
 
@@ -752,6 +761,10 @@ include C:\masm32\include\masm32rt.inc
             ; ==== Print Thank you message ====
             push offset thankYouMsg
             call StdOut
+
+            ; ==== Record the sale ====
+            call RecordSale
+            call SaveSalesData
             
             jmp exit_program; -> Should I quit automatically or loop back to the menu?
 
@@ -1411,9 +1424,90 @@ include C:\masm32\include\masm32rt.inc
     
     UpdateItemStock ENDP
     
+    ; ========================================
+    ; Record Sale - Saves current transaction
+    ; ========================================
+
+    RecordSale PROC
+        LOCAL saleOffset:DWORD, i:DWORD
         
+        ; Check if we have room for more sales our max should be about 1k sales
+        mov eax, currentSalesCount
+        cmp eax, MAX_SALES ;-> has 1k sales limit
+        jge record_sale_full
 
+        ; get current date and time 
+        invoke GetLocalTime, add localTime
+        
+        ; record each item in the transaction
+        mov i, 0
+        
+        record_loop:
+            mov eax, i
+            cmp eax, itemCount
+            jge record_done
 
+            ; check if we still have room for another sale            
+            mov eax, currentSalesCount
+            cmp eax, MAX_SALES ;-> has 1k sales limit
+            jge record_sale_full
+
+            ; calculate offset for new sale record
+            mov eax, currentSalesCount
+            mov ebx, SALE_RECORD_SIZE
+            mul ebx
+            mov saleOffset, eax
+            
+            ; get pointer to sale record
+            lea edi, salesDatabase
+            add edi, saleOffset
+            
+            ; store ItemId
+            mov eax, i 
+            mov ebx, receiptItems[eax*4]
+            mov [edi], ebx
+
+            ; store quantity
+            mov ebx, receiptQtys[eax*4]
+            mov [edi + 4], ebx
+            
+            ; store total price
+            mov ebx, receiptTotals[eax*4]
+            mov [edi + 8], ebx
+            
+            ; Store date (YYYYMMDD format)
+            movzx eax, localTime.wYear
+            imul eax, 10000
+            movzx ebx, localTime.wMonth
+            imul ebx, 100
+            add eax, ebx
+            movzx ebx, localTime.wDay
+            add eax, ebx
+            mov [edi + 12], eax
+            
+            ; Store Time (HHMM format)
+            movzx eax, localTime.wHour
+            imul eax, 100
+            movzx ebx, localTime.wMinute
+            add eax, ebx
+            mov [edi + 16], eax
+
+            ; increment sales count
+            inc currentSalesCount
+            inc i
+            jmp record_loop
+
+        record_sale_full:
+            push offset recordFullMsg
+            call StdOut
+
+            jmp start_minimart
+            
+
+        record_done:
+            ret
+
+    RecordSale ENDP
 
     end start_minimart
 
