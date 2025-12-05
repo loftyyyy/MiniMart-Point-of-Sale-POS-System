@@ -1574,9 +1574,39 @@ include C:\masm32\include\masm32rt.inc
         cmp bytesRead, 4
         jne load_sales_default_close
 
+        ; Validate sales count
+        mov eax, currentSalesCount
+        cmp eax, 0
+        jl load_sales_default_close
+        cmp eax, MAX_SALES ; -> checks if currentSalesCount is over 1k
+        jg load_sales_default_close
+        
+        ; calculate bytes to read
+        mov eax, currentSalesCount
+        mov ebx, SALE_RECORD_SALE   
+        mul ebx
+        mov bytesToRead, eax
+        
+        ; Read all sales
+        invoke ReadFile, fileHandle, addr salesDatabase, bytesToRead, addr bytesRead, NULL
+        test eax, eax
+        jz load_sales_default_close
+        
+        mov eax, bytesToRead
+        cmp bytesRead, eax
+        jne load_sales_default_close
+        
+        invoke CloseHandle, fileHandle
+        ret
 
 
+        load_sales_default_close:
+            invoke CloseHandle, fileHandle
 
+         load_sales_default:
+            mov currentSalesCount, 0
+            ret
+           
 
 
     LoadSalesData ENDP
