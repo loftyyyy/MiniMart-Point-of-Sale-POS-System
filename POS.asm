@@ -33,6 +33,14 @@ include C:\masm32\include\masm32rt.inc
     itemDatabase db MAX_ITEMS * ITEM_SIZE dup(0)
     currentItemCount DWORD 10 ;Default with 10 items
 
+    ; ==== Sales Tracking Structure ====
+    ; Each sale record: [ItemID(4)][Quantity(4)][TotalPrice(4)][Date(4)][Time(4)] = 20 bytes
+    SALE_RECORD_SIZE equ 20
+    MAX_SALES equ 1000  ; Track up to 1000 sales
+    salesDatabase db MAX_SALES * SALE_RECORD_SIZE dup(0)
+    currentSalesCount DWORD 0
+
+
     ;==== File Names ====
     inventoryFileName db "inventory.dat", 0
     summaryFileName db "summary.dat", 0
@@ -197,6 +205,18 @@ include C:\masm32\include\masm32rt.inc
     initialStockPrompt db "Initial Stock: ", 0
     itemAddedMsg db "Item added succesffully!",13,10,0
     inventoryFullMsg db "Inventory is full! Cannot add more items!",13,10,0
+
+
+    ; ==== Summary Messages ====
+    summaryHeader db 13,10,"========= Sales Summary =========",13,10,0
+    totalSalesMsg db "Total Transactions: ",0
+    totalRevenueMsg db "Total Revenue: ₱",0
+    mostSoldItemMsg db "Most Sold Item: ",0
+    leastStockMsg db "Items Low on Stock (< 10): ",13,10,0
+    noSalesMsg db "No sales recorded yet.",13,10,0
+    salesBreakdownMsg db 13,10,"--- Sales Breakdown by Item ---",13,10,0
+    itemSalesLine db 64 dup(0)
+    dashLine3 db "================================",13,10,0
 
     ; ==== Prices ==== -> Obsolete
     priceTable DWORD 39, 12, 15, 50, 25, 30, 20, 15, 5, 8
