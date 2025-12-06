@@ -1611,14 +1611,18 @@ include C:\masm32\include\masm32rt.inc
 
     LoadSalesData ENDP
 
-
+    ; ========================================
+    ; Display Sales Summary
+    ; ========================================
+    DisplaySalesSummary PROC
+    DisplaySalesSummary ENDP
 
     end start_minimart
 
     ;TODO: CLS every new item - Done
     ;-> put Stocks on items - Done
     ;->  add item - Done
-    ;-> Summary - WIP
+    ;-> Summary - WIP 
 
     ;TODO: Feature improvements:
     ;-> Persistence - Done
