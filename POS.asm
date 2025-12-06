@@ -33,6 +33,14 @@ include C:\masm32\include\masm32rt.inc
     itemDatabase db MAX_ITEMS * ITEM_SIZE dup(0)
     currentItemCount DWORD 10 ;Default with 10 items
 
+    ; ==== Sales Tracking Structure ====
+    ; Each sale record: [ItemID(4)][Quantity(4)][TotalPrice(4)][Date(4)][Time(4)] = 20 bytes
+    SALE_RECORD_SIZE equ 20
+    MAX_SALES equ 1000  ; Track up to 1000 sales
+    salesDatabase db MAX_SALES * SALE_RECORD_SIZE dup(0)
+    currentSalesCount DWORD 0
+
+
     ;==== File Names ====
     inventoryFileName db "inventory.dat", 0
     summaryFileName db "summary.dat", 0
@@ -66,8 +74,9 @@ include C:\masm32\include\masm32rt.inc
                    db "2. Add New Item",13,10
                    db "3. Update Item Stock",13,10
                    db "4. POS (Point of Sale)", 13,10
-                   db "5. Exit", 13,10, 13,10
-                   db "Selection [1-5]: ", 0
+                   db "5. View Sales Summary", 13,10
+                   db "6. Exit", 13,10, 13,10
+                   db "Selection [1-6]: ", 0
 
 
 
@@ -166,6 +175,7 @@ include C:\masm32\include\masm32rt.inc
     invalidQuantityMsg db "Invalid Quantity! Please enter a positive number", 13, 10, 0
     invalidTypeMsg db "Please input a number!", 13,10, 0
     invalidPay db "Invalid payment! Please enter a valid amount", 13, 10, 0
+    exitProgramMsg db "Exiting.....thank youuu", 0
 
 
     ; ==== File error messages ====
@@ -198,6 +208,26 @@ include C:\masm32\include\masm32rt.inc
     itemAddedMsg db "Item added succesffully!",13,10,0
     inventoryFullMsg db "Inventory is full! Cannot add more items!",13,10,0
 
+
+    ; ==== Summary Messages ====
+    summaryHeader db 13,10,"========= Sales Summary =========",13,10,0
+    totalSalesMsg db "Total Transactions: ",0
+    totalRevenueMsg db "Total Revenue: ₱",0
+    mostSoldItemMsg db "Most Sold Item: ",0
+    leastStockMsg db "Items Low on Stock (< 10): ",13,10,0
+    noSalesMsg db "No sales recorded yet.",13,10,0
+    salesBreakdownMsg db 13,10,"--- Sales Breakdown by Item ---",13,10,0
+    itemSalesLine db 64 dup(0)
+    dashLine3 db "================================",13,10,0
+    recordFullMsg db "Sorry, summary file is full. Please move the current summary.dat to create a new empty one",0
+    soldPrefixMsg db " (Sold: ",0
+    soldSuffixMsg db ")",13,10,0
+    lowStockPrefixMsg db "  - ",0
+    lowStockOpenParenMsg db " (",0
+    lowStockSuffixMsg db " left)",13,10,0
+
+    ; ==== Sales Messages ====
+    saveSalesFailMsg db "Something went wrong. Failed saving sales. Please try again", 0
     ; ==== Prices ==== -> Obsolete
     priceTable DWORD 39, 12, 15, 50, 25, 30, 20, 15, 5, 8
 
@@ -242,7 +272,11 @@ include C:\masm32\include\masm32rt.inc
         ; ==== Load inventory at startup ====
         call LoadInventory 
 
-        invoke StdOut, chr$("LoadInventory completed...",13,10)
+        ; ==== Load sales at startup ====
+        call LoadSalesData
+
+
+        invoke StdOut, chr$("LoadInventory and LoadSalesData completed...",13,10)
         invoke Sleep, 2000
 
         ; ==== Clear Console Screen ====
@@ -276,7 +310,7 @@ include C:\masm32\include\masm32rt.inc
             ; ==== Validate input (1-5) ====
             cmp eax, 1
             jl invalid_selection_input_minimart
-            cmp eax, 5
+            cmp eax, 6
             jg invalid_selection_input_minimart
 
             cmp eax, 1
@@ -288,6 +322,8 @@ include C:\masm32\include\masm32rt.inc
             cmp eax, 4
             je start_pos
             cmp eax, 5
+            je start_summary
+            cmp eax, 6
             je exit_program
              
         invalid_selection_input_minimart:
@@ -319,6 +355,11 @@ include C:\masm32\include\masm32rt.inc
             jmp option_loop
 
     start_summary:
+        call DisplaySalesSummary
+        invoke crt_system, chr$("pause")
+        invoke crt_system, addr clsCmd
+        jmp option_loop
+        
 
     start_pos:
 
@@ -732,8 +773,16 @@ include C:\masm32\include\masm32rt.inc
             ; ==== Print Thank you message ====
             push offset thankYouMsg
             call StdOut
+
+            ; ==== Record the sale ====
+            call RecordSale
+            call SaveSalesData
             
-            jmp exit_program; -> Should I quit automatically or loop back to the menu?
+            ; Returns to main menu, prior to this it was exiting instantly
+            invoke StdOut, chr$(13,10)
+            invoke crt_system, chr$("pause")
+            invoke crt_system, addr clsCmd
+            jmp option_loop  ; Return to main menu instead of exiting
 
         out_of_stock_error:
             push offset outOfStockMsg
@@ -792,6 +841,9 @@ include C:\masm32\include\masm32rt.inc
             jmp payment_loop
 
         exit_program:
+            push offset exitProgramMsg
+            call StdOut
+            
             invoke ExitProcess, 0
             
     ; ========================================
@@ -1391,16 +1443,434 @@ include C:\masm32\include\masm32rt.inc
     
     UpdateItemStock ENDP
     
+    ; ========================================
+    ; Record Sale - Saves current transaction
+    ; ========================================
+
+    RecordSale PROC
+        LOCAL saleOffset:DWORD, i:DWORD
         
+        ; Check if we have room for more sales our max should be about 1k sales
+        mov eax, currentSalesCount
+        cmp eax, MAX_SALES ;-> has 1k sales limit
+        jge record_sale_full
+
+        ; get current date and time 
+        invoke GetLocalTime, addr localTime
+        
+        ; record each item in the transaction
+        mov i, 0
+        
+        record_loop:
+            mov eax, i
+            cmp eax, itemCount
+            jge record_done
+
+            ; check if we still have room for another sale            
+            mov eax, currentSalesCount
+            cmp eax, MAX_SALES ;-> has 1k sales limit
+            jge record_sale_full
+
+            ; calculate offset for new sale record
+            mov eax, currentSalesCount
+            mov ebx, SALE_RECORD_SIZE
+            mul ebx
+            mov saleOffset, eax
+            
+            ; get pointer to sale record
+            lea edi, salesDatabase
+            add edi, saleOffset
+            
+            ; store ItemId
+            mov eax, i 
+            mov ebx, receiptItems[eax*4]
+            mov [edi], ebx
+
+            ; store quantity
+            mov ebx, receiptQtys[eax*4]
+            mov [edi + 4], ebx
+            
+            ; store total price
+            mov ebx, receiptTotals[eax*4]
+            mov [edi + 8], ebx
+            
+            ; Store date (YYYYMMDD format)
+            movzx eax, localTime.wYear
+            imul eax, 10000
+            movzx ebx, localTime.wMonth
+            imul ebx, 100
+            add eax, ebx
+            movzx ebx, localTime.wDay
+            add eax, ebx
+            mov [edi + 12], eax
+            
+            ; Store Time (HHMM format)
+            movzx eax, localTime.wHour
+            imul eax, 100
+            movzx ebx, localTime.wMinute
+            add eax, ebx
+            mov [edi + 16], eax
+
+            ; increment sales count
+            inc currentSalesCount
+            inc i
+            jmp record_loop
+
+        record_sale_full:
+            push offset recordFullMsg
+            call StdOut
+
+            jmp start_minimart
+            
+
+        record_done:
+            ret
+
+    RecordSale ENDP
+
+    ; ========================================
+    ; Save Sales Data to File
+    ; ========================================
+    SaveSalesData PROC
+        LOCAL bytesToWrite:DWORD
+        
+        ;create or read file if exists
+        invoke CreateFile, addr summaryFileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL
+        cmp eax, INVALID_HANDLE_VALUE
+        je save_sales_failed
+        mov fileHandle, eax
+
+        ; Write sales count
+        invoke WriteFile, fileHandle, addr currentSalesCount, 4, addr bytesWritten, NULL
+        test eax, eax
+        jz save_sales_error_close
+
+        ; Calculate bytes to write
+        mov eax, currentSalesCount
+        mov ebx, SALE_RECORD_SIZE
+        mul ebx
+        mov bytesToWrite,eax
+
+        ; Write all sales records
+        invoke WriteFile, fileHandle, addr salesDatabase, bytesToWrite, addr bytesWritten, NULL
+        test eax, eax
+        jz save_sales_error_close       
+
+        invoke CloseHandle, fileHandle
+        ret
+
+        save_sales_error_close:
+            invoke CloseHandle, fileHandle
+
+        save_sales_failed:
+            push offset saveSalesFailMsg
+            call StdOut
+
+            ret
 
 
+
+    SaveSalesData ENDP
+
+    ; ========================================
+    ; Load Sales Data from File
+    ; ========================================
+    LoadSalesData PROC
+        LOCAL bytesToRead:DWORD
+        
+        ; create or load file
+        invoke CreateFile, addr summaryFileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL
+        cmp eax, INVALID_HANDLE_VALUE
+        je load_sales_default
+        mov fileHandle, eax
+
+        ; Read sales count
+        invoke ReadFile, fileHandle, addr currentSalesCount, 4, addr bytesRead, NULL
+        test eax, eax
+        jz load_sales_default_close
+        cmp bytesRead, 4
+        jne load_sales_default_close
+
+        ; Validate sales count
+        mov eax, currentSalesCount
+        cmp eax, 0
+        jl load_sales_default_close
+        cmp eax, MAX_SALES ; -> checks if currentSalesCount is over 1k
+        jg load_sales_default_close
+        
+        ; calculate bytes to read
+        mov eax, currentSalesCount
+        mov ebx, SALE_RECORD_SIZE   
+        mul ebx
+        mov bytesToRead, eax
+        
+        ; Read all sales
+        invoke ReadFile, fileHandle, addr salesDatabase, bytesToRead, addr bytesRead, NULL
+        test eax, eax
+        jz load_sales_default_close
+        
+        mov eax, bytesToRead
+        cmp bytesRead, eax
+        jne load_sales_default_close
+        
+        invoke CloseHandle, fileHandle
+        ret
+
+
+        load_sales_default_close:
+            invoke CloseHandle, fileHandle
+
+         load_sales_default:
+            mov currentSalesCount, 0
+            ret
+           
+
+
+    LoadSalesData ENDP
+
+    ; ========================================
+    ; Display Sales Summary
+    ; ========================================
+    DisplaySalesSummary PROC
+        LOCAL totalRevenue:DWORD, totalTransactions:DWORD
+        LOCAL mostSoldItemID:DWORD, mostSoldQty:DWORD
+        LOCAL itemQuantities[50]:DWORD  ; Track quantity sold for each item
+        LOCAL i:DWORD, j:DWORD, itemOffset:DWORD, itemRevenue:DWORD
+        
+        ;Display header
+        push offset summaryHeader
+        call StdOut
+        
+        ; check if there are any sales
+        mov eax, currentSalesCount
+        cmp eax, 0
+        je no_sales_summary
+
+        ; Initialize counters
+        mov totalRevenue, 0
+        mov totalTransactions, 0
+        mov mostSoldQty, 0
+        mov mostSoldItemID, 0
+        
+        ; Zero out item quantities array
+        lea edi, itemQuantities
+        mov ecx, 50
+        xor eax, eax
+        rep stosd
+        
+        ; Process all sales
+        mov i, 0
+
+
+        process_sales_loop:
+            mov eax, i
+            cmp eax, currentSalesCount ; -> This means that all sales were accounted for
+            jge sales_processed
+
+            ; Calculate sales record offset
+            mov ebx, SALE_RECORD_SIZE
+            mul ebx
+            lea esi, salesDatabase
+            add esi, eax
+            
+            ; Get itemID, Quantity, and total
+            mov eax, [esi] ;-> esi contains the base address of the sale structure. Base cell contains the ItemID
+            mov ebx, [esi + 4] ;-> add 4 to esi is for the cell of Quantity
+            mov ecx, [esi + 8] ;-> add 4 to esi is for the cell of Total Price
+            
+            ; add to item quantities
+            lea edi, itemQuantities
+            mov edx, eax
+            shl edx, 2              ; multiply by 4
+            add edi, edx
+            add [edi], ebx
+
+            ; Add to total revenue
+            mov eax, totalRevenue
+            add eax, ecx
+            mov totalRevenue, eax
+            
+            inc i
+            jmp process_sales_loop
+            
+        sales_processed:
+            
+            ;finding most sold item
+            mov i, 0
+            find_most_sold:
+                mov eax, i
+                cmp eax, currentItemCount
+                jge found_most_sold
+                
+                lea edi, itemQuantities
+                mov ebx, i
+                shl ebx, 2
+                add edi, ebx
+                mov eax, [edi]
+                
+                cmp eax, mostSoldQty
+                jle not_most_sold
+                
+                mov mostSoldQty, eax
+                mov eax, i
+                mov mostSoldItemID, eax
+                
+            not_most_sold:
+                inc i
+                jmp find_most_sold
+    
+                
+        found_most_sold:
+            
+            ;Display total transactions
+            push offset totalSalesMsg
+            call StdOut
+
+            invoke StdOut, str$(currentSalesCount)
+            invoke StdOut, chr$(13,10)
+
+            ; Display total revenue
+            push offset totalRevenueMsg
+            call StdOut
+            invoke StdOut, str$(totalRevenue)
+            invoke StdOut, chr$(13,10, 13,10)
+
+            ; Display most sold item
+            cmp mostSoldQty, 0
+            je no_most_sold
+
+            push offset mostSoldItemMsg
+            call StdOut
+
+            ; get item name of the most sold
+            mov eax, mostSoldItemID
+            mov ebx, ITEM_SIZE
+            mul ebx
+            lea esi, itemDatabase
+            add esi, eax
+            invoke StdOut, esi
+
+            push offset soldPrefixMsg
+            call StdOut
+            invoke StdOut, str$(mostSoldQty)
+            push offset soldSuffixMsg
+            call StdOut
+            
+         no_most_sold:
+            ; Display sales breakdown
+            push offset salesBreakdownMsg
+            call StdOut
+            push offset dashLine3
+            call StdOut
+            
+            mov i, 0
+
+            display_breakdown:
+                mov eax, i
+                cmp eax, currentItemCount
+                jge breakdown_done
+                
+                ; Check if this item was sold
+                lea edi, itemQuantities
+                mov ebx, i
+                shl ebx, 2
+                add edi, ebx
+                mov eax, [edi]
+                cmp eax, 0
+                je skip_item
+                
+                ; Get item info
+                mov eax, i
+                mov ebx, ITEM_SIZE
+                mul ebx
+                mov itemOffset, eax
+                lea esi, itemDatabase
+                add esi, itemOffset
+                
+                ; Get item price
+                mov edx, [esi + NAME_SIZE]
+                
+                ; Calculate total for this item
+                lea edi, itemQuantities
+                mov ebx, i
+                shl ebx, 2
+                add edi, ebx
+                mov eax, [edi]          ; quantity
+                imul eax, edx           ; multiply by price to get revenue per item. left out tax since it's not part of the revenue ata
+                mov itemRevenue, eax    ; save revenue before invoke calls (invoke doesn't preserve registers)
+                
+                ; Format and display
+                invoke RtlZeroMemory, addr itemSalesLine, 64
+                mov ecx, i
+                inc ecx
+                invoke wsprintf, addr itemSalesLine, chr$("  %d. %-15s: Qty %3d  Revenue: ₱%d"), ecx, esi, DWORD PTR [edi], itemRevenue
+                push offset itemSalesLine
+                call StdOut
+                invoke StdOut, chr$(13,10)
+                
+            skip_item:
+                inc i
+                jmp display_breakdown
+                
+        breakdown_done:
+            push offset dashLine3
+            call StdOut
+            
+            ; Display low stock warning
+            push offset leastStockMsg
+            call StdOut
+            
+            mov i, 0
+
+            check_low_stock:
+                mov eax, i
+                cmp eax, currentItemCount
+                jge low_stock_done
+                
+                ; Get item stock
+                mov eax, i
+                mov ebx, ITEM_SIZE
+                mul ebx
+                lea esi, itemDatabase
+                add esi, eax
+                mov eax, [esi + NAME_SIZE + 4]  ; stock amount
+                
+                cmp eax, 10
+                jge not_low_stock
+                
+                ; Display item with low stock
+                push offset lowStockPrefixMsg
+                call StdOut
+                invoke StdOut, esi
+                push offset lowStockOpenParenMsg
+                call StdOut
+                mov eax, [esi + NAME_SIZE + 4]
+                invoke StdOut, str$(eax)
+                push offset lowStockSuffixMsg
+                call StdOut
+                
+            not_low_stock:
+                inc i
+                jmp check_low_stock
+                
+        low_stock_done:
+            invoke StdOut, chr$(13,10)
+            ret
+            
+        no_sales_summary:
+            push offset noSalesMsg
+            call StdOut
+            ret
+                 
+        
+    DisplaySalesSummary ENDP
 
     end start_minimart
 
     ;TODO: CLS every new item - Done
     ;-> put Stocks on items - Done
     ;->  add item - Done
-    ;-> Summary - WIP
+    ;-> Summary - WIP 
 
     ;TODO: Feature improvements:
     ;-> Persistence - Done
