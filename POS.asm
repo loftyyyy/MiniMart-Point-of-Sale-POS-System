@@ -175,6 +175,7 @@ include C:\masm32\include\masm32rt.inc
     invalidQuantityMsg db "Invalid Quantity! Please enter a positive number", 13, 10, 0
     invalidTypeMsg db "Please input a number!", 13,10, 0
     invalidPay db "Invalid payment! Please enter a valid amount", 13, 10, 0
+    exitProgramMsg db "Exiting.....thank youuu", 0
 
 
     ; ==== File error messages ====
@@ -309,7 +310,7 @@ include C:\masm32\include\masm32rt.inc
             ; ==== Validate input (1-5) ====
             cmp eax, 1
             jl invalid_selection_input_minimart
-            cmp eax, 5
+            cmp eax, 6
             jg invalid_selection_input_minimart
 
             cmp eax, 1
@@ -840,6 +841,9 @@ include C:\masm32\include\masm32rt.inc
             jmp payment_loop
 
         exit_program:
+            push offset exitProgramMsg
+            call StdOut
+            
             invoke ExitProcess, 0
             
     ; ========================================
@@ -1631,7 +1635,7 @@ include C:\masm32\include\masm32rt.inc
         LOCAL totalRevenue:DWORD, totalTransactions:DWORD
         LOCAL mostSoldItemID:DWORD, mostSoldQty:DWORD
         LOCAL itemQuantities[50]:DWORD  ; Track quantity sold for each item
-        LOCAL i:DWORD, j:DWORD, itemOffset:DWORD
+        LOCAL i:DWORD, j:DWORD, itemOffset:DWORD, itemRevenue:DWORD
         
         ;Display header
         push offset summaryHeader
@@ -1792,13 +1796,14 @@ include C:\masm32\include\masm32rt.inc
                 shl ebx, 2
                 add edi, ebx
                 mov eax, [edi]          ; quantity
-                mul edx                 ; multiply by price to get revenue per item. left out tax since it's not part of the revenue ata
+                imul eax, edx           ; multiply by price to get revenue per item. left out tax since it's not part of the revenue ata
+                mov itemRevenue, eax    ; save revenue before invoke calls (invoke doesn't preserve registers)
                 
                 ; Format and display
                 invoke RtlZeroMemory, addr itemSalesLine, 64
                 mov ecx, i
                 inc ecx
-                invoke wsprintf, addr itemSalesLine, chr$("  %d. %-15s: Qty %3d  Revenue: ₱%d"), ecx, esi, DWORD PTR [edi], eax
+                invoke wsprintf, addr itemSalesLine, chr$("  %d. %-15s: Qty %3d  Revenue: ₱%d"), ecx, esi, DWORD PTR [edi], itemRevenue
                 push offset itemSalesLine
                 call StdOut
                 invoke StdOut, chr$(13,10)
