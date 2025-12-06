@@ -1870,7 +1870,7 @@ include C:\masm32\include\masm32rt.inc
     ;TODO: CLS every new item - Done
     ;-> put Stocks on items - Done
     ;->  add item - Done
-    ;-> Summary - WIP 
+    ;-> Summary - Done
 
     ;TODO: Feature improvements:
     ;-> Persistence - Done
