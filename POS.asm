@@ -266,7 +266,11 @@ include C:\masm32\include\masm32rt.inc
         ; ==== Load inventory at startup ====
         call LoadInventory 
 
-        invoke StdOut, chr$("LoadInventory completed...",13,10)
+        ; ==== Load sales at startup ====
+        call LoadSalesData
+
+
+        invoke StdOut, chr$("LoadInventory and LoadSalesData completed...",13,10)
         invoke Sleep, 2000
 
         ; ==== Clear Console Screen ====
@@ -768,7 +772,11 @@ include C:\masm32\include\masm32rt.inc
             call RecordSale
             call SaveSalesData
             
-            jmp exit_program; -> Should I quit automatically or loop back to the menu?
+            ; Returns to main menu, prior to this it was exiting instantly
+            invoke StdOut, chr$(13,10)
+            invoke crt_system, chr$("pause")
+            invoke crt_system, addr clsCmd
+            jmp option_loop  ; Return to main menu instead of exiting
 
         out_of_stock_error:
             push offset outOfStockMsg
@@ -1812,7 +1820,7 @@ include C:\masm32\include\masm32rt.inc
                 mul ebx
                 lea esi, itemDatabase
                 add esi, eax
-                mov eax, [esi + NAME_SIZE + 4]  ; stock
+                mov eax, [esi + NAME_SIZE + 4]  ; stock amount
                 
                 cmp eax, 10
                 jge not_low_stock
