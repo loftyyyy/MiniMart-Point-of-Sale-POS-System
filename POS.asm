@@ -219,6 +219,11 @@ include C:\masm32\include\masm32rt.inc
     itemSalesLine db 64 dup(0)
     dashLine3 db "================================",13,10,0
     recordFullMsg db "Sorry, summary file is full. Please move the current summary.dat to create a new empty one",0
+    soldPrefixMsg db " (Sold: ",0
+    soldSuffixMsg db ")",13,10,0
+    lowStockPrefixMsg db "  - ",0
+    lowStockOpenParenMsg db " (",0
+    lowStockSuffixMsg db " left)",13,10,0
 
     ; ==== Sales Messages ====
     saveSalesFailMsg db "Something went wrong. Failed saving sales. Please try again", 0
@@ -1447,7 +1452,7 @@ include C:\masm32\include\masm32rt.inc
         jge record_sale_full
 
         ; get current date and time 
-        invoke GetLocalTime, add localTime
+        invoke GetLocalTime, addr localTime
         
         ; record each item in the transaction
         mov i, 0
@@ -1591,7 +1596,7 @@ include C:\masm32\include\masm32rt.inc
         
         ; calculate bytes to read
         mov eax, currentSalesCount
-        mov ebx, SALE_RECORD_SALE   
+        mov ebx, SALE_RECORD_SIZE   
         mul ebx
         mov bytesToRead, eax
         
@@ -1630,7 +1635,7 @@ include C:\masm32\include\masm32rt.inc
         
         ;Display header
         push offset summaryHeader
-        call StdIn
+        call StdOut
         
         ; check if there are any sales
         mov eax, currentSalesCount
@@ -1659,7 +1664,7 @@ include C:\masm32\include\masm32rt.inc
             jge sales_processed
 
             ; Calculate sales record offset
-            move ebx, SALE_RECORD_SIZE
+            mov ebx, SALE_RECORD_SIZE
             mul ebx
             lea esi, salesDatabase
             add esi, eax
@@ -1741,9 +1746,11 @@ include C:\masm32\include\masm32rt.inc
             add esi, eax
             invoke StdOut, esi
 
-            invoke StdOut, chr$(" (Sold: ")
+            push offset soldPrefixMsg
+            call StdOut
             invoke StdOut, str$(mostSoldQty)
-            invoke StdOut, chr$(")",13,10)
+            push offset soldSuffixMsg
+            call StdOut
             
          no_most_sold:
             ; Display sales breakdown
@@ -1785,7 +1792,7 @@ include C:\masm32\include\masm32rt.inc
                 shl ebx, 2
                 add edi, ebx
                 mov eax, [edi]          ; quantity
-                mul edx                 ; multiply by price
+                mul edx                 ; multiply by price to get revenue per item. left out tax since it's not part of the revenue ata
                 
                 ; Format and display
                 invoke RtlZeroMemory, addr itemSalesLine, 64
@@ -1809,6 +1816,7 @@ include C:\masm32\include\masm32rt.inc
             call StdOut
             
             mov i, 0
+
             check_low_stock:
                 mov eax, i
                 cmp eax, currentItemCount
@@ -1826,12 +1834,15 @@ include C:\masm32\include\masm32rt.inc
                 jge not_low_stock
                 
                 ; Display item with low stock
-                invoke StdOut, chr$("  - ")
+                push offset lowStockPrefixMsg
+                call StdOut
                 invoke StdOut, esi
-                invoke StdOut, chr$(" (")
+                push offset lowStockOpenParenMsg
+                call StdOut
                 mov eax, [esi + NAME_SIZE + 4]
                 invoke StdOut, str$(eax)
-                invoke StdOut, chr$(" left)",13,10)
+                push offset lowStockSuffixMsg
+                call StdOut
                 
             not_low_stock:
                 inc i
