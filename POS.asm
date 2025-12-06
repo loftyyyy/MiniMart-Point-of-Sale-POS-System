@@ -1615,6 +1615,230 @@ include C:\masm32\include\masm32rt.inc
     ; Display Sales Summary
     ; ========================================
     DisplaySalesSummary PROC
+        LOCAL totalRevenue:DWORD, totalTransactions:DWORD
+        LOCAL mostSoldItemID:DWORD, mostSoldQty:DWORD
+        LOCAL itemQuantities[50]:DWORD  ; Track quantity sold for each item
+        LOCAL i:DWORD, j:DWORD, itemOffset:DWORD
+        
+        ;Display header
+        push offset summaryHeader
+        call StdIn
+        
+        ; check if there are any sales
+        mov eax, currentSalesCount
+        cmp eax, 0
+        je no_sales_summary
+
+        ; Initialize counters
+        mov totalRevenue, 0
+        mov totalTransactions, 0
+        mov mostSoldQty, 0
+        mov mostSoldItemID, 0
+        
+        ; Zero out item quantities array
+        lea edi, itemQuantities
+        mov ecx, 50
+        xor eax, eax
+        rep stosd
+        
+        ; Process all sales
+        mov i, 0
+
+
+        process_sales_loop:
+            mov eax, i
+            cmp eax, currentSalesCount ; -> This means that all sales were accounted for
+            jge sales_processed
+
+            ; Calculate sales record offset
+            move ebx, SALE_RECORD_SIZE
+            mul ebx
+            lea esi, salesDatabase
+            add esi, eax
+            
+            ; Get itemID, Quantity, and total
+            mov eax, [esi] ;-> esi contains the base address of the sale structure. Base cell contains the ItemID
+            mov ebx, [esi + 4] ;-> add 4 to esi is for the cell of Quantity
+            mov ecx, [esi + 8] ;-> add 4 to esi is for the cell of Total Price
+            
+            ; add to item quantities
+            lea edi, itemQuantities
+            mov edx, eax
+            shl edx, 2              ; multiply by 4
+            add edi, edx
+            add [edi], ebx
+
+            ; Add to total revenue
+            mov eax, totalRevenue
+            add eax, ecx
+            mov totalRevenue, eax
+            
+            inc i
+            jmp process_sales_loop
+            
+        sales_processed:
+            
+            ;finding most sold item
+            mov i, 0
+            find_most_sold:
+                mov eax, i
+                cmp eax, currentItemCount
+                jge found_most_sold
+                
+                lea edi, itemQuantities
+                mov ebx, i
+                shl ebx, 2
+                add edi, ebx
+                mov eax, [edi]
+                
+                cmp eax, mostSoldQty
+                jle not_most_sold
+                
+                mov mostSoldQty, eax
+                mov eax, i
+                mov mostSoldItemID, eax
+                
+            not_most_sold:
+                inc i
+                jmp find_most_sold
+    
+                
+        found_most_sold:
+            
+            ;Display total transactions
+            push offset totalSalesMsg
+            call StdOut
+
+            invoke StdOut, str$(currentSalesCount)
+            invoke StdOut, chr$(13,10)
+
+            ; Display total revenue
+            push offset totalRevenueMsg
+            call StdOut
+            invoke StdOut, str$(totalRevenue)
+            invoke StdOut, chr$(13,10, 13,10)
+
+            ; Display most sold item
+            cmp mostSoldQty, 0
+            je no_most_sold
+
+            push offset mostSoldItemMsg
+            call StdOut
+
+            ; get item name of the most sold
+            mov eax, mostSoldItemID
+            mov ebx, ITEM_SIZE
+            mul ebx
+            lea esi, itemDatabase
+            add esi, eax
+            invoke StdOut, esi
+
+            invoke StdOut, chr$(" (Sold: ")
+            invoke StdOut, str$(mostSoldQty)
+            invoke StdOut, chr$(")",13,10)
+            
+         no_most_sold:
+            ; Display sales breakdown
+            push offset salesBreakdownMsg
+            call StdOut
+            push offset dashLine3
+            call StdOut
+            
+            mov i, 0
+
+            display_breakdown:
+                mov eax, i
+                cmp eax, currentItemCount
+                jge breakdown_done
+                
+                ; Check if this item was sold
+                lea edi, itemQuantities
+                mov ebx, i
+                shl ebx, 2
+                add edi, ebx
+                mov eax, [edi]
+                cmp eax, 0
+                je skip_item
+                
+                ; Get item info
+                mov eax, i
+                mov ebx, ITEM_SIZE
+                mul ebx
+                mov itemOffset, eax
+                lea esi, itemDatabase
+                add esi, itemOffset
+                
+                ; Get item price
+                mov edx, [esi + NAME_SIZE]
+                
+                ; Calculate total for this item
+                lea edi, itemQuantities
+                mov ebx, i
+                shl ebx, 2
+                add edi, ebx
+                mov eax, [edi]          ; quantity
+                mul edx                 ; multiply by price
+                
+                ; Format and display
+                invoke RtlZeroMemory, addr itemSalesLine, 64
+                mov ecx, i
+                inc ecx
+                invoke wsprintf, addr itemSalesLine, chr$("  %d. %-15s: Qty %3d  Revenue: ₱%d"), ecx, esi, DWORD PTR [edi], eax
+                push offset itemSalesLine
+                call StdOut
+                invoke StdOut, chr$(13,10)
+                
+            skip_item:
+                inc i
+                jmp display_breakdown
+                
+        breakdown_done:
+            push offset dashLine3
+            call StdOut
+            
+            ; Display low stock warning
+            push offset leastStockMsg
+            call StdOut
+            
+            mov i, 0
+            check_low_stock:
+                mov eax, i
+                cmp eax, currentItemCount
+                jge low_stock_done
+                
+                ; Get item stock
+                mov eax, i
+                mov ebx, ITEM_SIZE
+                mul ebx
+                lea esi, itemDatabase
+                add esi, eax
+                mov eax, [esi + NAME_SIZE + 4]  ; stock
+                
+                cmp eax, 10
+                jge not_low_stock
+                
+                ; Display item with low stock
+                invoke StdOut, chr$("  - ")
+                invoke StdOut, esi
+                invoke StdOut, chr$(" (")
+                mov eax, [esi + NAME_SIZE + 4]
+                invoke StdOut, str$(eax)
+                invoke StdOut, chr$(" left)",13,10)
+                
+            not_low_stock:
+                inc i
+                jmp check_low_stock
+                
+        low_stock_done:
+            invoke StdOut, chr$(13,10)
+            ret
+            
+        no_sales_summary:
+            push offset noSalesMsg
+            call StdOut
+            ret
+                 
+        
     DisplaySalesSummary ENDP
 
     end start_minimart
