@@ -19,7 +19,20 @@ include C:\masm32\include\masm32rt.inc
 
     localTime LPSYSTEMTIME <>
 
-    ; ==== File handling ====
+    ; ==== Receipt File Handling ====
+    receiptFileName db 64 dup(0)  
+    receiptFileHandle DWORD ?
+    receiptBuffer db 2048 dup(0)  
+    receiptBufferPtr DWORD ?       
+
+    ; ==== Receipt File Messages ====
+    receiptSavedMsg db 13,10,"Receipt saved as: ",0
+    receiptSaveErrorMsg db 13,10,"Warning: Could not save receipt to file.",13,10,0
+
+
+
+
+    ; ==== File handling for inventory and summary ====
     fileHandle DWORD ?
     bytesRead DWORD ?
     bytesWritten DWORD ?
