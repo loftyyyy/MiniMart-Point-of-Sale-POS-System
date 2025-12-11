@@ -741,6 +741,7 @@ include C:\masm32\include\masm32rt.inc
 
 
         print_totals:
+
             ;==== Print Separator ==== 
             push offset dashLine
             call StdOut
@@ -782,10 +783,14 @@ include C:\masm32\include\masm32rt.inc
             call StdOut
             invoke StdOut, str$(change)
             invoke StdOut, chr$(13,10)
-            
+
             ; ==== Print Thank you message ====
             push offset thankYouMsg
             call StdOut
+
+            ; ==== Build and Save Receipt to File ====
+            call BuildReceiptContent
+            call SaveReceiptToFile
 
             ; ==== Record the sale ====
             call RecordSale
@@ -1877,6 +1882,296 @@ include C:\masm32\include\masm32rt.inc
                  
         
     DisplaySalesSummary ENDP
+    
+    ; ========================================
+    ; Append String to Receipt Buffer
+    ; ========================================
+    AppendToReceipt PROC
+        USES esi edi ecx
+        
+        ; ESI should point to the string to append
+        ; Get current buffer position
+        mov edi, receiptBufferPtr
+        
+        ; Copy string to buffer
+        append_loop:
+            mov al, [esi]
+            test al, al
+            jz append_done
+            mov [edi], al
+            inc esi
+            inc edi
+            jmp append_loop
+            
+        append_done:
+            ; Update buffer pointer
+            mov receiptBufferPtr, edi
+            ret
+            
+    AppendToReceipt ENDP
+
+    ; ========================================
+    ; Append Number to Receipt Buffer
+    ; ========================================
+    AppendNumberToReceipt PROC numberValue:DWORD
+        LOCAL tempStr[32]:BYTE
+        
+        ; Convert number to string
+        invoke wsprintf, addr tempStr, chr$("%d"), numberValue
+        
+        ; Append the string
+        lea esi, tempStr
+        call AppendToReceipt
+        
+        ret
+        
+    AppendNumberToReceipt ENDP
+
+    ; ========================================
+    ; Generate Receipt Filename from Timestamp
+    ; Format: receipt_YYYYMMDD_HHMMSS.txt
+    ; ========================================
+    GenerateReceiptFilename PROC
+        
+        ; Get current date/time
+        invoke GetLocalTime, addr localTime
+        
+        ; Format: receipt_YYYYMMDD_HHMMSS.txt
+        movzx eax, localTime.wYear
+        movzx ebx, localTime.wMonth
+        movzx ecx, localTime.wDay
+        movzx edx, localTime.wHour
+        
+        push edx  ; Save hour
+        
+        movzx edx, localTime.wMinute
+        push edx  ; Save minute
+        
+        movzx edx, localTime.wSecond
+        push edx  ; Save second
+        
+        pop edx   ; Restore second
+        push edx  ; Keep it for later
+        
+        mov edi, offset receiptFileName
+        
+        ; Use wsprintf to format the filename
+        pop edx   ; second
+        push edx
+        
+        pop edx   ; second (for real this time)
+        mov edi, offset receiptFileName
+        
+        ; Simpler approach: build filename step by step
+        invoke wsprintf, addr receiptFileName, chr$("receipt_%04d%02d%02d_%02d%02d%02d.txt"), \
+               eax, ebx, ecx, \
+               WORD PTR localTime.wHour, \
+               WORD PTR localTime.wMinute, \
+               WORD PTR localTime.wSecond
+        
+        ret
+        
+    GenerateReceiptFilename ENDP
+
+    ; ========================================
+    ; Save Receipt to File
+    ; ========================================
+    SaveReceiptToFile PROC
+        LOCAL bytesToWrite:DWORD
+        
+        ; Generate filename
+        call GenerateReceiptFilename
+        
+        ; Calculate bytes to write (current buffer position - start)
+        mov eax, receiptBufferPtr
+        lea ebx, receiptBuffer
+        sub eax, ebx
+        mov bytesToWrite, eax
+        
+        ; Create the file
+        invoke CreateFile, addr receiptFileName, GENERIC_WRITE, 0, NULL, \
+               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL
+        cmp eax, INVALID_HANDLE_VALUE
+        je save_receipt_failed
+        mov receiptFileHandle, eax
+        
+        ; Write the receipt content
+        invoke WriteFile, receiptFileHandle, addr receiptBuffer, bytesToWrite, addr bytesWritten, NULL
+        test eax, eax
+        jz save_receipt_error_close
+        
+        ; Close the file
+        invoke CloseHandle, receiptFileHandle
+        
+        ; Display success message
+        push offset receiptSavedMsg
+        call StdOut
+        push offset receiptFileName
+        call StdOut
+        invoke StdOut, chr$(13,10)
+        
+        ret
+        
+    save_receipt_error_close:
+        invoke CloseHandle, receiptFileHandle
+        
+    save_receipt_failed:
+        push offset receiptSaveErrorMsg
+        call StdOut
+        ret
+        
+    SaveReceiptToFile ENDP
+
+    ; ========================================
+    ; Build Receipt Content in Buffer
+    ; ========================================
+    BuildReceiptContent PROC
+        LOCAL i:DWORD
+        
+        ; Initialize buffer pointer
+        lea eax, receiptBuffer
+        mov receiptBufferPtr, eax
+        
+        ; Clear buffer
+        invoke RtlZeroMemory, addr receiptBuffer, 2048
+        
+        ; Add receipt header
+        lea esi, receiptHdr
+        call AppendToReceipt
+        
+        ; Add date/time
+        lea esi, dateTimeBuf
+        call AppendToReceipt
+        lea esi, chr$(13,10)
+        call AppendToReceipt
+        
+        ; Add dash line
+        lea esi, dashLine
+        call AppendToReceipt
+        
+        ; Add all items
+        mov i, 0
+        
+        build_items_loop:
+            mov eax, i
+            cmp eax, itemCount
+            jge build_items_done
+            
+            ; Get item index
+            mov eax, receiptItems[eax*4]
+            
+            ; Calculate item offset in database
+            mov ebx, ITEM_SIZE
+            mul ebx
+            lea edi, itemDatabase
+            add edi, eax
+            
+            ; Add "Item X: "
+            lea esi, itemText
+            call AppendToReceipt
+            
+            mov eax, i
+            inc eax
+            invoke AppendNumberToReceipt, eax
+            
+            lea esi, colonText
+            call AppendToReceipt
+            
+            ; Add item name
+            mov esi, edi
+            call AppendToReceipt
+            
+            ; Add " x "
+            lea esi, priceText
+            call AppendToReceipt
+            
+            ; Add quantity
+            mov eax, i
+            mov ebx, receiptQtys[eax*4]
+            invoke AppendNumberToReceipt, ebx
+            
+            ; Add " @ ₱"
+            lea esi, atText
+            call AppendToReceipt
+            
+            ; Add price
+            mov eax, [edi + NAME_SIZE]
+            invoke AppendNumberToReceipt, eax
+            
+            ; Add " = ₱"
+            lea esi, equalText
+            call AppendToReceipt
+            
+            ; Add total
+            mov eax, i
+            mov ebx, receiptTotals[eax*4]
+            invoke AppendNumberToReceipt, ebx
+            
+            ; Add newline
+            lea esi, chr$(13,10)
+            call AppendToReceipt
+            
+            inc i
+            jmp build_items_loop
+            
+        build_items_done:
+            ; Add separator
+            lea esi, dashLine
+            call AppendToReceipt
+            
+            ; Add subtotal
+            lea esi, subText
+            call AppendToReceipt
+            invoke AppendNumberToReceipt, runningTotal
+            lea esi, chr$(13,10)
+            call AppendToReceipt
+            
+            ; Add tax
+            lea esi, taxText
+            call AppendToReceipt
+            invoke AppendNumberToReceipt, tax
+            lea esi, chr$(13,10)
+            call AppendToReceipt
+            
+            ; Add separator
+            lea esi, dashLine
+            call AppendToReceipt
+            
+            ; Add total
+            lea esi, totalText
+            call AppendToReceipt
+            invoke AppendNumberToReceipt, finalTotal
+            lea esi, chr$(13,10)
+            call AppendToReceipt
+            
+            ; Add separator
+            lea esi, dashLine2
+            call AppendToReceipt
+            
+            ; Add payment
+            lea esi, paidText
+            call AppendToReceipt
+            invoke AppendNumberToReceipt, payment
+            lea esi, chr$(13,10)
+            call AppendToReceipt
+            
+            ; Add change
+            lea esi, changeText
+            call AppendToReceipt
+            invoke AppendNumberToReceipt, change
+            lea esi, chr$(13,10)
+            call AppendToReceipt
+            
+            ; Add thank you message
+            lea esi, thankYouMsg
+            call AppendToReceipt
+            
+            ret
+            
+    BuildReceiptContent ENDP
+
+
+
 
     end start_minimart
 
