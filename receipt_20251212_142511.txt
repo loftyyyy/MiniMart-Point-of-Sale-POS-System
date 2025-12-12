@@ -1,0 +1,14 @@
+
+========= RECEIPT =========
+Date: 2025-12-12   Time: 02:25 PM
+--------------------------
+Item 1: Coffee x 1 @ ₱39 = ₱39
+--------------------------
+Sub Total:        ₱39
+VAT (12%):        ₱4
+--------------------------
+Total Amount:     ₱43
+===========================
+Amount Paid:      ₱50
+Change:           ₱7
+Thank you for your purchase!
