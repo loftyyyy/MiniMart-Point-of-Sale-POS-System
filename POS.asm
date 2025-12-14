@@ -159,6 +159,10 @@ include C:\masm32\include\masm32rt.inc
     qtyPrompt db "Enter Quantity: ", 0
     anotherMsg db "Add another item? (Y/N): ",0 
     paymentMsg db 13,10,"Payment Amount:   ₱",0
+    posExitOptionMsg db "0. Exit/Cancel",13,10,0
+    posCancelMsg db 13,10,"Transaction cancelled. Returning to main menu.",13,10,0
+    addItemCancelPrompt db "Enter 0 at any prompt to cancel",13,10,0
+    addItemCancelledMsg db "Add item cancelled.",13,10,0
 
                 
     ; ==== Receipt Messages ====
@@ -232,7 +236,7 @@ include C:\masm32\include\masm32rt.inc
 
     ; ===== Add Item menu and messages ====
     addItemMenu db 13,10,"========= Add New Item =========",13,10
-                db "Enter item details:", 13,10, 0
+                db "Enter item details", 13,10, 0
     namePrompt db "Item Name: ",0
     pricePrompt db "Price (₱): ",0
     initialStockPrompt db "Initial Stock: ", 0
@@ -429,6 +433,10 @@ include C:\masm32\include\masm32rt.inc
             call atodw ; converts string to int
             jc invalid_type_input ; Jumps if input is not a number
             mov itemIdx, eax
+     
+            ; ===== Check for exit (0) =====
+            cmp eax, 0
+            je pos_exit_cancel
      
             ; ===== Validate against current item count =====
             cmp eax, 1
@@ -855,6 +863,50 @@ include C:\masm32\include\masm32rt.inc
             
             jmp read_item
             
+        pos_exit_cancel:
+            ; Check if there are items in cart
+            mov eax, itemCount
+            cmp eax, 0
+            jg pos_exit_with_items
+            
+            ; No items, just exit
+            push offset posCancelMsg
+            call StdOut
+            invoke crt_system, addr clsCmd
+            jmp option_loop
+            
+        pos_exit_with_items:
+            ; Items in cart, confirm cancellation
+            invoke StdOut, chr$(13,10,"You have items in your cart. Cancel transaction? (Y/N): ")
+            push 32
+            push offset inputBuf
+            call StdIn
+            
+            mov al, byte ptr [inputBuf]
+            cmp al, 'Y'
+            je pos_confirm_cancel
+            cmp al, 'y'
+            je pos_confirm_cancel
+            cmp al, 'N'
+            je pos_continue_transaction
+            cmp al, 'n'
+            je pos_continue_transaction
+            ; Invalid input, continue transaction
+            jmp pos_continue_transaction
+            
+        pos_confirm_cancel:
+            ; Reset cart
+            mov runningTotal, 0
+            mov itemCount, 0
+            push offset posCancelMsg
+            call StdOut
+            invoke crt_system, addr clsCmd
+            jmp option_loop
+            
+        pos_continue_transaction:
+            invoke crt_system, addr clsCmd
+            jmp item_loop
+            
         invalid_selection_input:
             push offset invalidSelectionMsg
             call StdOut
@@ -1164,7 +1216,10 @@ include C:\masm32\include\masm32rt.inc
         
 
         display_done:
-            invoke StdOut, chr$(13,10,"Selection [1-")
+            ; Display exit option
+            push offset posExitOptionMsg
+            call StdOut
+            invoke StdOut, chr$(13,10,"Selection [0-")
             invoke StdOut, str$(currentItemCount)
             invoke StdOut, chr$("]: ")
             ret
@@ -1185,14 +1240,45 @@ include C:\masm32\include\masm32rt.inc
         ;Display add item menu
         push offset addItemMenu
         call StdOut
+        invoke StdOut, chr$(13,10)
+        push offset addItemCancelPrompt
+        call StdOut
+        invoke StdOut, chr$(13,10)
 
         ; Get item name
-        push offset namePrompt
-        call StdOut
+        get_name:
+            push offset namePrompt
+            call StdOut
 
-        push NAME_SIZE
-        push offset tempName
-        call StdIn
+            push NAME_SIZE
+            push offset tempName
+            call StdIn
+            
+            ; Check for cancel - input must be exactly "0"
+            cmp byte ptr [tempName], '0'
+            jne check_name_empty
+            ; Check if second char is null, CR, or LF (meaning just "0")
+            cmp byte ptr [tempName + 1], 0
+            je add_item_cancelled
+            cmp byte ptr [tempName + 1], 13
+            je add_item_cancelled
+            cmp byte ptr [tempName + 1], 10
+            je add_item_cancelled
+            
+        check_name_empty:
+            ; Check if name is empty (invalid, ask again)
+            cmp byte ptr [tempName], 0
+            je name_empty_error
+            cmp byte ptr [tempName], 13
+            je name_empty_error
+            cmp byte ptr [tempName], 10
+            je name_empty_error
+            jmp get_price  ; Name is valid, proceed
+            
+        name_empty_error:
+            push offset invalidSelectionMsg
+            call StdOut
+            jmp get_name
         
         ;Get item price
         get_price:
@@ -1209,10 +1295,24 @@ include C:\masm32\include\masm32rt.inc
             cmp byte ptr [inputBuf], 0
             je get_price
             
+            ; Check for cancel (0) before converting
+            cmp byte ptr [inputBuf], '0'
+            jne convert_price
+            ; Check if it's just "0" (next char should be null, CR, or LF)
+            cmp byte ptr [inputBuf + 1], 0
+            je add_item_cancelled
+            cmp byte ptr [inputBuf + 1], 13
+            je add_item_cancelled
+            cmp byte ptr [inputBuf + 1], 10
+            je add_item_cancelled
+            
+        convert_price:
             ;Converting input(str) to int
             push offset inputBuf
             call atodw
             jc get_price
+            
+            ; Validate price is positive
             cmp eax, 0
             jle get_price
             mov tempPrice, eax
@@ -1232,10 +1332,25 @@ include C:\masm32\include\masm32rt.inc
             cmp byte ptr [inputBuf], 0
             je get_stock
 
+            ; Check for cancel (0) before converting
+            cmp byte ptr [inputBuf], '0'
+            jne convert_stock
+            ; Check if it's just "0" (next char should be null, CR, or LF)
+            cmp byte ptr [inputBuf + 1], 0
+            je add_item_cancelled
+            cmp byte ptr [inputBuf + 1], 13
+            je add_item_cancelled
+            cmp byte ptr [inputBuf + 1], 10
+            je add_item_cancelled
+            
+        convert_stock:
             ;Converting input(str) to int
             push offset inputBuf
             call atodw
             jc get_stock
+            
+            ; Validate stock is non-negative (0 is valid for stock, but we use it for cancel)
+            ; Since we already checked for "0" above, if we get here with 0, it means invalid input
             cmp eax, 0
             jl get_stock
             mov tempStock, eax
@@ -1280,7 +1395,8 @@ include C:\masm32\include\masm32rt.inc
             ret
             
         add_item_cancelled:
-
+            push offset addItemCancelledMsg
+            call StdOut
             ret
 
 
