@@ -93,10 +93,11 @@ include C:\masm32\include\masm32rt.inc
                    db "1. View Inventory",13,10
                    db "2. Add New Item",13,10
                    db "3. Update Item Stock",13,10
-                   db "4. POS (Point of Sale)", 13,10
-                   db "5. View Sales Summary", 13,10
-                   db "6. Exit", 13,10, 13,10
-                   db "Selection [1-6]: ", 0
+                   db "4. Delete Item",13,10
+                   db "5. POS (Point of Sale)", 13,10
+                   db "6. View Sales Summary", 13,10
+                   db "7. Exit", 13,10, 13,10
+                   db "Selection [1-7]: ", 0
 
 
 
@@ -158,6 +159,10 @@ include C:\masm32\include\masm32rt.inc
     qtyPrompt db "Enter Quantity: ", 0
     anotherMsg db "Add another item? (Y/N): ",0 
     paymentMsg db 13,10,"Payment Amount:   ₱",0
+    posExitOptionMsg db "0. Exit/Cancel",13,10,0
+    posCancelMsg db 13,10,"Transaction cancelled. Returning to main menu.",13,10,0
+    addItemCancelPrompt db "Enter 0 at any prompt to cancel",13,10,0
+    addItemCancelledMsg db "Add item cancelled.",13,10,0
 
                 
     ; ==== Receipt Messages ====
@@ -220,9 +225,18 @@ include C:\masm32\include\masm32rt.inc
     updateCancelledMsg db "Update cancelled.",13,10,0
 
 
+    ; ===== Delete Item menu and messages ====
+    deleteItemMenu db 13,10,"========= Delete Item =========",13,10,0
+    selectItemToDeletePrompt db "Enter item ID to delete (0 to cancel): ",0
+    itemDeletedMsg db "Item deleted successfully!",13,10,0
+    deleteCancelledMsg db "Delete cancelled.",13,10,0
+    confirmDeleteMsg db "Are you sure you want to delete this item? (Y/N): ",0
+    noItemsToDeleteMsg db "No items in inventory to delete.",13,10,0
+
+
     ; ===== Add Item menu and messages ====
     addItemMenu db 13,10,"========= Add New Item =========",13,10
-                db "Enter item details:", 13,10, 0
+                db "Enter item details", 13,10, 0
     namePrompt db "Item Name: ",0
     pricePrompt db "Price (₱): ",0
     initialStockPrompt db "Initial Stock: ", 0
@@ -328,10 +342,10 @@ include C:\masm32\include\masm32rt.inc
             jc invalid_type_input_minimart
             mov optionIdx, eax
             
-            ; ==== Validate input (1-5) ====
+            ; ==== Validate input (1-7) ====
             cmp eax, 1
             jl invalid_selection_input_minimart
-            cmp eax, 6
+            cmp eax, 7
             jg invalid_selection_input_minimart
 
             cmp eax, 1
@@ -341,10 +355,12 @@ include C:\masm32\include\masm32rt.inc
             cmp eax, 3
             je start_update_stock
             cmp eax, 4
-            je start_pos
+            je start_delete_item
             cmp eax, 5
-            je start_summary
+            je start_pos
             cmp eax, 6
+            je start_summary
+            cmp eax, 7
             je exit_program
              
         invalid_selection_input_minimart:
@@ -371,6 +387,12 @@ include C:\masm32\include\masm32rt.inc
 
         start_update_stock:
             call UpdateItemStock
+            invoke crt_system, chr$("pause")
+            invoke crt_system, addr clsCmd
+            jmp option_loop
+
+        start_delete_item:
+            call DeleteItem
             invoke crt_system, chr$("pause")
             invoke crt_system, addr clsCmd
             jmp option_loop
@@ -411,6 +433,10 @@ include C:\masm32\include\masm32rt.inc
             call atodw ; converts string to int
             jc invalid_type_input ; Jumps if input is not a number
             mov itemIdx, eax
+     
+            ; ===== Check for exit (0) =====
+            cmp eax, 0
+            je pos_exit_cancel
      
             ; ===== Validate against current item count =====
             cmp eax, 1
@@ -837,6 +863,50 @@ include C:\masm32\include\masm32rt.inc
             
             jmp read_item
             
+        pos_exit_cancel:
+            ; Check if there are items in cart
+            mov eax, itemCount
+            cmp eax, 0
+            jg pos_exit_with_items
+            
+            ; No items, just exit
+            push offset posCancelMsg
+            call StdOut
+            invoke crt_system, addr clsCmd
+            jmp option_loop
+            
+        pos_exit_with_items:
+            ; Items in cart, confirm cancellation
+            invoke StdOut, chr$(13,10,"You have items in your cart. Cancel transaction? (Y/N): ")
+            push 32
+            push offset inputBuf
+            call StdIn
+            
+            mov al, byte ptr [inputBuf]
+            cmp al, 'Y'
+            je pos_confirm_cancel
+            cmp al, 'y'
+            je pos_confirm_cancel
+            cmp al, 'N'
+            je pos_continue_transaction
+            cmp al, 'n'
+            je pos_continue_transaction
+            ; Invalid input, continue transaction
+            jmp pos_continue_transaction
+            
+        pos_confirm_cancel:
+            ; Reset cart
+            mov runningTotal, 0
+            mov itemCount, 0
+            push offset posCancelMsg
+            call StdOut
+            invoke crt_system, addr clsCmd
+            jmp option_loop
+            
+        pos_continue_transaction:
+            invoke crt_system, addr clsCmd
+            jmp item_loop
+            
         invalid_selection_input:
             push offset invalidSelectionMsg
             call StdOut
@@ -1146,7 +1216,10 @@ include C:\masm32\include\masm32rt.inc
         
 
         display_done:
-            invoke StdOut, chr$(13,10,"Selection [1-")
+            ; Display exit option
+            push offset posExitOptionMsg
+            call StdOut
+            invoke StdOut, chr$(13,10,"Selection [0-")
             invoke StdOut, str$(currentItemCount)
             invoke StdOut, chr$("]: ")
             ret
@@ -1167,14 +1240,45 @@ include C:\masm32\include\masm32rt.inc
         ;Display add item menu
         push offset addItemMenu
         call StdOut
+        invoke StdOut, chr$(13,10)
+        push offset addItemCancelPrompt
+        call StdOut
+        invoke StdOut, chr$(13,10)
 
         ; Get item name
-        push offset namePrompt
-        call StdOut
+        get_name:
+            push offset namePrompt
+            call StdOut
 
-        push NAME_SIZE
-        push offset tempName
-        call StdIn
+            push NAME_SIZE
+            push offset tempName
+            call StdIn
+            
+            ; Check for cancel - input must be exactly "0"
+            cmp byte ptr [tempName], '0'
+            jne check_name_empty
+            ; Check if second char is null, CR, or LF (meaning just "0")
+            cmp byte ptr [tempName + 1], 0
+            je add_item_cancelled
+            cmp byte ptr [tempName + 1], 13
+            je add_item_cancelled
+            cmp byte ptr [tempName + 1], 10
+            je add_item_cancelled
+            
+        check_name_empty:
+            ; Check if name is empty (invalid, ask again)
+            cmp byte ptr [tempName], 0
+            je name_empty_error
+            cmp byte ptr [tempName], 13
+            je name_empty_error
+            cmp byte ptr [tempName], 10
+            je name_empty_error
+            jmp get_price  ; Name is valid, proceed
+            
+        name_empty_error:
+            push offset invalidSelectionMsg
+            call StdOut
+            jmp get_name
         
         ;Get item price
         get_price:
@@ -1191,10 +1295,24 @@ include C:\masm32\include\masm32rt.inc
             cmp byte ptr [inputBuf], 0
             je get_price
             
+            ; Check for cancel (0) before converting
+            cmp byte ptr [inputBuf], '0'
+            jne convert_price
+            ; Check if it's just "0" (next char should be null, CR, or LF)
+            cmp byte ptr [inputBuf + 1], 0
+            je add_item_cancelled
+            cmp byte ptr [inputBuf + 1], 13
+            je add_item_cancelled
+            cmp byte ptr [inputBuf + 1], 10
+            je add_item_cancelled
+            
+        convert_price:
             ;Converting input(str) to int
             push offset inputBuf
             call atodw
             jc get_price
+            
+            ; Validate price is positive
             cmp eax, 0
             jle get_price
             mov tempPrice, eax
@@ -1214,10 +1332,25 @@ include C:\masm32\include\masm32rt.inc
             cmp byte ptr [inputBuf], 0
             je get_stock
 
+            ; Check for cancel (0) before converting
+            cmp byte ptr [inputBuf], '0'
+            jne convert_stock
+            ; Check if it's just "0" (next char should be null, CR, or LF)
+            cmp byte ptr [inputBuf + 1], 0
+            je add_item_cancelled
+            cmp byte ptr [inputBuf + 1], 13
+            je add_item_cancelled
+            cmp byte ptr [inputBuf + 1], 10
+            je add_item_cancelled
+            
+        convert_stock:
             ;Converting input(str) to int
             push offset inputBuf
             call atodw
             jc get_stock
+            
+            ; Validate stock is non-negative (0 is valid for stock, but we use it for cancel)
+            ; Since we already checked for "0" above, if we get here with 0, it means invalid input
             cmp eax, 0
             jl get_stock
             mov tempStock, eax
@@ -1262,7 +1395,8 @@ include C:\masm32\include\masm32rt.inc
             ret
             
         add_item_cancelled:
-
+            push offset addItemCancelledMsg
+            call StdOut
             ret
 
 
@@ -1470,6 +1604,178 @@ include C:\masm32\include\masm32rt.inc
         
     
     UpdateItemStock ENDP
+    
+    ; ========================================
+    ; Delete Item from Inventory
+    ; ========================================
+    DeleteItem PROC
+        LOCAL itemID:DWORD, itemOffset:DWORD
+        LOCAL i:DWORD, bytesToMove:DWORD
+        LOCAL sourcePtr:DWORD, destPtr:DWORD
+        
+        ; Check if inventory is empty
+        mov eax, currentItemCount
+        cmp eax, 0
+        je no_items_to_delete
+        
+        ; Display current inventory first so user can see what to delete
+        call DisplayInventory
+        
+        ; Display delete menu
+        push offset deleteItemMenu
+        call StdOut
+        
+        get_item_to_delete:
+            ; Display prompt for item ID
+            push offset selectItemToDeletePrompt
+            call StdOut
+            
+            ; Get user input
+            push 32
+            push offset inputBuf
+            call StdIn
+            
+            ; Validate input
+            cmp byte ptr [inputBuf], 0
+            je get_item_to_delete
+            
+            ; Convert user input to int
+            push offset inputBuf
+            call atodw
+            jc get_item_to_delete
+            
+            ; Check for cancel (0)
+            cmp eax, 0
+            je delete_cancelled
+            
+            mov itemID, eax
+            
+            ; Validate item ID input range
+            cmp eax, 1
+            jl invalid_delete_item_id
+            mov ebx, currentItemCount
+            cmp eax, ebx
+            jg invalid_delete_item_id
+            
+            ; Convert user input to 0-based index
+            dec eax
+            mov itemID, eax
+            
+            ; Get item name for confirmation display
+            mov eax, itemID
+            mov ebx, ITEM_SIZE
+            mul ebx
+            mov itemOffset, eax
+            lea esi, itemDatabase
+            add esi, itemOffset
+            
+            ; Display item to be deleted
+            invoke StdOut, chr$(13,10,"Item to delete: ")
+            invoke StdOut, esi
+            invoke StdOut, chr$(13,10)
+            
+            ; Confirm deletion
+            push offset confirmDeleteMsg
+            call StdOut
+            
+            push 32
+            push offset inputBuf
+            call StdIn
+            
+            mov al, byte ptr [inputBuf]
+            cmp al, 'Y'
+            je confirm_delete
+            cmp al, 'y'
+            je confirm_delete
+            cmp al, 'N'
+            je delete_cancelled
+            cmp al, 'n'
+            je delete_cancelled
+            ; Invalid input, treat as cancel
+            jmp delete_cancelled
+            
+        confirm_delete:
+            ; Calculate how many bytes need to be moved
+            ; Items after the deleted one need to shift forward
+            mov eax, currentItemCount
+            sub eax, itemID
+            dec eax  ; Subtract 1 because we're deleting one item
+            cmp eax, 0
+            jle no_items_to_shift  ; No items to shift if deleting last item
+            
+            ; Calculate bytes to move
+            mov ebx, ITEM_SIZE
+            mul ebx
+            mov bytesToMove, eax
+            
+            ; Calculate source pointer (item after deleted item)
+            mov eax, itemID
+            inc eax  ; Next item
+            mov ebx, ITEM_SIZE
+            mul ebx
+            lea esi, itemDatabase
+            add esi, eax
+            mov sourcePtr, esi
+            
+            ; Calculate destination pointer (deleted item's position)
+            mov eax, itemID
+            mov ebx, ITEM_SIZE
+            mul ebx
+            lea edi, itemDatabase
+            add edi, eax
+            mov destPtr, edi
+            
+            ; Move items forward (shift left)
+            mov ecx, bytesToMove
+            shr ecx, 2  ; Divide by 4 for DWORD moves (faster)
+            mov esi, sourcePtr
+            mov edi, destPtr
+            rep movsd  ; Move DWORDs
+            
+            ; Handle remaining bytes if any (ITEM_SIZE might not be multiple of 4)
+            mov ecx, bytesToMove
+            and ecx, 3  ; Get remainder
+            jz shift_done
+            rep movsb  ; Move remaining bytes
+            
+        shift_done:
+        no_items_to_shift:
+            ; Clear the last item's space (the one that was shifted from)
+            mov eax, currentItemCount
+            dec eax  ; Last item index
+            mov ebx, ITEM_SIZE
+            mul ebx
+            lea edi, itemDatabase
+            add edi, eax
+            invoke RtlZeroMemory, edi, ITEM_SIZE
+            
+            ; Decrement item count
+            dec currentItemCount
+            
+            ; Save inventory to file
+            call SaveInventory
+            
+            ; Display success message
+            push offset itemDeletedMsg
+            call StdOut
+            ret
+            
+        invalid_delete_item_id:
+            push offset invalidSelectionMsg
+            call StdOut
+            jmp get_item_to_delete
+            
+        delete_cancelled:
+            push offset deleteCancelledMsg
+            call StdOut
+            ret
+            
+        no_items_to_delete:
+            push offset noItemsToDeleteMsg
+            call StdOut
+            ret
+    
+    DeleteItem ENDP
     
     ; ========================================
     ; Record Sale - Saves current transaction
