@@ -242,6 +242,7 @@ include C:\masm32\include\masm32rt.inc
     initialStockPrompt db "Initial Stock: ", 0
     itemAddedMsg db "Item added succesffully!",13,10,0
     inventoryFullMsg db "Inventory is full! Cannot add more items!",13,10,0
+    duplicateItemMsg db "An item with this name already exists! Please enter a different name.",13,10,0
 
 
     ; ==== Summary Messages ====
@@ -1528,6 +1529,54 @@ include C:\masm32\include\masm32rt.inc
     DisplayDynamicMenu ENDP
     
     ; ========================================
+    ; Check for Duplicate Item Name
+    ; Returns: EAX = 1 if duplicate found, 0 if not found
+    ; ========================================
+    CheckDuplicateItemName PROC
+        LOCAL itemOffset:DWORD
+        LOCAL itemIndex:DWORD
+        
+        ; Initialize itemIndex to 0
+        mov itemIndex, 0
+        
+        ; Loop through all existing items
+        check_loop:
+            mov eax, itemIndex
+            cmp eax, currentItemCount
+            jge no_duplicate_found  ; Reached end, no duplicate
+            
+            ; Calculate offset for current item
+            mov eax, itemIndex
+            mov ebx, ITEM_SIZE
+            mul ebx
+            mov itemOffset, eax
+            
+            ; Get pointer to current item's name
+            lea esi, itemDatabase
+            add esi, itemOffset
+            
+            ; Compare current item name with tempName (case-insensitive)
+            invoke lstrcmpi, esi, addr tempName
+            
+            ; If strings match (return value 0), duplicate found
+            cmp eax, 0
+            je duplicate_found
+            
+            ; Move to next item
+            inc itemIndex
+            jmp check_loop
+        
+        duplicate_found:
+            mov eax, 1  ; Return 1 (duplicate found)
+            ret
+        
+        no_duplicate_found:
+            mov eax, 0  ; Return 0 (no duplicate)
+            ret
+    
+    CheckDuplicateItemName ENDP
+    
+    ; ========================================
     ; Add New Item
     ; ========================================   
     AddNewItem PROC
@@ -1579,11 +1628,25 @@ include C:\masm32\include\masm32rt.inc
             je name_empty_error
             cmp byte ptr [tempName], 10
             je name_empty_error
-            jmp get_price  ; Name is valid, proceed
+            
+            ; Check for duplicate item name
+            call CheckDuplicateItemName
+            cmp eax, 1
+            je duplicate_name_error
+            
+            jmp get_price  ; Name is valid and not duplicate, proceed
             
         name_empty_error:
             push offset invalidSelectionMsg
             call StdOut
+            jmp get_name
+            
+        duplicate_name_error:
+            invoke SetColor, CON_COLOR_ERROR
+            invoke StdOut, chr$("  ")
+            push offset duplicateItemMsg
+            call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             jmp get_name
         
         ;Get item price
