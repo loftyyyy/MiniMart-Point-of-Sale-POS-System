@@ -441,23 +441,25 @@ include C:\masm32\include\masm32rt.inc
     PrintBoxHeader ENDP
 
     ; ========================================
-    ; Print Simple Styled Header (Alternative)
+    ; Print Simple Styled Header
+    ; Format: ========= Section =========
     ; ========================================
     PrintStyledHeader PROC headerTextPtr:DWORD
         push eax
         
         invoke SetColor, CON_COLOR_HEADER
         invoke StdOut, chr$(13,10)
-        invoke StdOut, chr$("  ")
-        invoke StdOut, chr$("==========================================")
-        invoke StdOut, chr$(13,10)
-        invoke StdOut, chr$("  ")
-        invoke StdOut, chr$("  ")
+        
+        ; Print left side equals (9 characters)
+        invoke StdOut, chr$("========= ")
+        
+        ; Print header text
         push headerTextPtr
         call StdOut
-        invoke StdOut, chr$(13,10)
-        invoke StdOut, chr$("  ")
-        invoke StdOut, chr$("==========================================")
+        
+        ; Print right side equals (9 characters)
+        invoke StdOut, chr$(" =========")
+        
         invoke StdOut, chr$(13,10)
         invoke SetColor, CON_COLOR_DEFAULT
         
