@@ -72,7 +72,7 @@ include C:\masm32\include\masm32rt.inc
 
 
     ; ==== Inventory Display ====
-    inventoryHeader db 13,10,"========= Current Inventory =========",13,10,0
+    inventoryHeader db 13,10,"============== Current Inventory ==============",13,10,13,10,0
     inventoryNum db "ID: ",0
     nameLabel db " | Name: ",0
     priceLabel db " | Price: ₱",0
@@ -245,7 +245,6 @@ include C:\masm32\include\masm32rt.inc
 
 
     ; ==== Summary Messages ====
-    summaryHeader db 13,10,"========= Sales Summary =========",13,10,0
     totalSalesMsg db "Total Transactions: ",0
     totalRevenueMsg db "Total Revenue: ₱",0
     mostSoldItemMsg db "Most Sold Item: ",0
@@ -451,14 +450,14 @@ include C:\masm32\include\masm32rt.inc
         invoke StdOut, chr$(13,10)
         
         ; Print left side equals (9 characters)
-        invoke StdOut, chr$("========= ")
+        invoke StdOut, chr$("============== ")
         
-        ; Print header text
+        ; Print header text (only once)
         push headerTextPtr
         call StdOut
         
         ; Print right side equals (9 characters)
-        invoke StdOut, chr$(" =========")
+        invoke StdOut, chr$(" ==============")
         
         invoke StdOut, chr$(13,10)
         invoke SetColor, CON_COLOR_DEFAULT
@@ -482,6 +481,7 @@ include C:\masm32\include\masm32rt.inc
         call LoadSalesData
 
         invoke SetColor, CON_COLOR_SUCCESS
+        invoke StdOut, chr$("LoadInventory and LoadSalesData completed...",13,10)
         invoke StdOut, chr$("System initialized successfully!",13,10)
         invoke SetColor, CON_COLOR_DEFAULT
         invoke Sleep, 1000
@@ -1824,10 +1824,6 @@ include C:\masm32\include\masm32rt.inc
 
         ; display current inventory first so that the user can pick which item it wants to update
         call DisplayInventory
-        
-        ; display update menu
-        push offset updateStockMenu
-        call StdOut
 
         get_item_id:
             ;display prompt for item id
@@ -1965,10 +1961,6 @@ include C:\masm32\include\masm32rt.inc
         
         ; Display current inventory first so user can see what to delete
         call DisplayInventory
-        
-        ; Display delete menu
-        push offset deleteItemMenu
-        call StdOut
         
         get_item_to_delete:
             ; Display prompt for item ID
