@@ -2583,7 +2583,7 @@ include C:\masm32\include\masm32rt.inc
                 invoke SetColor, CON_COLOR_WARNING
                 push offset lowStockOpenParenMsg
                 call StdOut
-                invoke SetColor, CON_COLOR_STOCK
+                invoke SetColor, CON_COLOR_ERROR
                 mov eax, [esi + NAME_SIZE + 4]
                 invoke StdOut, str$(eax)
                 invoke SetColor, CON_COLOR_WARNING
