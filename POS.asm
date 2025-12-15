@@ -1600,13 +1600,13 @@ include C:\masm32\include\masm32rt.inc
             push offset inputBuf
             call StdIn
 
-            ; input validation
+            ; ==== Check if input is empty ====
             cmp byte ptr [inputBuf], 0
-            je get_price
+            je invalid_price_input
             
-            ; Check for cancel (0) before converting
+            ; ==== Check for cancel (0) before validating digits ====
             cmp byte ptr [inputBuf], '0'
-            jne convert_price
+            jne validate_price_digits
             ; Check if it's just "0" (next char should be null, CR, or LF)
             cmp byte ptr [inputBuf + 1], 0
             je add_item_cancelled
@@ -1615,16 +1615,44 @@ include C:\masm32\include\masm32rt.inc
             cmp byte ptr [inputBuf + 1], 10
             je add_item_cancelled
             
-        convert_price:
-            ;Converting input(str) to int
+        validate_price_digits:
+            ; ==== Validate that input contains only digits ====
+            mov esi, offset inputBuf
+        validate_price_loop:
+            mov al, [esi]
+            cmp al, 0                    ; End of string?
+            je price_digits_valid
+            cmp al, 13                   ; Carriage return?
+            je price_digits_valid
+            cmp al, 10                   ; Line feed?
+            je price_digits_valid
+            cmp al, '0'                  ; Less than '0'?
+            jb invalid_price_input
+            cmp al, '9'                  ; Greater than '9'?
+            ja invalid_price_input
+            inc esi
+            jmp validate_price_loop
+            
+        price_digits_valid:
+            ; ==== Convert input to integer ====
             push offset inputBuf
             call atodw
-            jc get_price
+            jc invalid_price_input
             
-            ; Validate price is positive
+            ; ==== Validate price is positive ====
             cmp eax, 0
-            jle get_price
+            jle invalid_price_input
             mov tempPrice, eax
+            jmp price_valid_done  ; Skip error handler
+            
+        invalid_price_input:
+            invoke SetColor, CON_COLOR_ERROR
+            push offset invalidQuantityMsg
+            call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
+            jmp get_price
+            
+        price_valid_done:
             
         ;Get item Stock
         get_stock:
@@ -1640,13 +1668,13 @@ include C:\masm32\include\masm32rt.inc
             push offset inputBuf
             call StdIn
             
-            ;input validation
+            ; ==== Check if input is empty ====
             cmp byte ptr [inputBuf], 0
-            je get_stock
+            je invalid_stock_input
 
-            ; Check for cancel (0) before converting
+            ; ==== Check for cancel (0) before validating digits ====
             cmp byte ptr [inputBuf], '0'
-            jne convert_stock
+            jne validate_stock_digits
             ; Check if it's just "0" (next char should be null, CR, or LF)
             cmp byte ptr [inputBuf + 1], 0
             je add_item_cancelled
@@ -1655,18 +1683,46 @@ include C:\masm32\include\masm32rt.inc
             cmp byte ptr [inputBuf + 1], 10
             je add_item_cancelled
             
-        convert_stock:
-            ;Converting input(str) to int
+        validate_stock_digits:
+            ; ==== Validate that input contains only digits ====
+            mov esi, offset inputBuf
+        validate_stock_loop:
+            mov al, [esi]
+            cmp al, 0                    ; End of string?
+            je stock_digits_valid
+            cmp al, 13                   ; Carriage return?
+            je stock_digits_valid
+            cmp al, 10                   ; Line feed?
+            je stock_digits_valid
+            cmp al, '0'                  ; Less than '0'?
+            jb invalid_stock_input
+            cmp al, '9'                  ; Greater than '9'?
+            ja invalid_stock_input
+            inc esi
+            jmp validate_stock_loop
+            
+        stock_digits_valid:
+            ; ==== Convert input to integer ====
             push offset inputBuf
             call atodw
-            jc get_stock
+            jc invalid_stock_input
             
-            ; Validate stock is non-negative (0 is valid for stock, but we use it for cancel)
-            ; Since we already checked for "0" above, if we get here with 0, it means invalid input
+            ; ==== Validate stock is non-negative ====
+            ; Note: 0 is valid for stock, but "0" alone is used for cancel
+            ; If we get here with 0, it means it was "00" or similar, which is valid
             cmp eax, 0
-            jl get_stock
+            jl invalid_stock_input
             mov tempStock, eax
+            jmp stock_valid_done  ; Skip error handler
             
+        invalid_stock_input:
+            invoke SetColor, CON_COLOR_ERROR
+            push offset invalidQuantityMsg
+            call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
+            jmp get_stock
+            
+        stock_valid_done:
             ; Calculate offset for new item
             mov eax, currentItemCount
             mov ebx, ITEM_SIZE
@@ -1838,28 +1894,55 @@ include C:\masm32\include\masm32rt.inc
             push offset inputBuf
             call StdIn
 
-            ; validate input
+            ; ==== Check if input is empty ====
             cmp byte ptr [inputBuf], 0
-            je get_item_id 
+            je invalid_item_id_input 
 
-            ; convert user input to int using atodw
+            ; ==== Validate that input contains only digits ====
+            mov esi, offset inputBuf
+        validate_item_id_loop:
+            mov al, [esi]
+            cmp al, 0                    ; End of string?
+            je item_id_digits_valid
+            cmp al, 13                   ; Carriage return?
+            je item_id_digits_valid
+            cmp al, 10                   ; Line feed?
+            je item_id_digits_valid
+            cmp al, '0'                  ; Less than '0'?
+            jb invalid_item_id_input
+            cmp al, '9'                  ; Greater than '9'?
+            ja invalid_item_id_input
+            inc esi
+            jmp validate_item_id_loop
+            
+        item_id_digits_valid:
+            ; ==== Convert user input to int ====
             push offset inputBuf
             call atodw
-            jc get_item_id
+            jc invalid_item_id_input
             
-            ; Check for cancel (0)
+            ; ==== Check for cancel (0) ====
             cmp eax, 0
             je update_cancelled
 
             mov itemID, eax
 
-            ; validate item id input range 
+            ; ==== Validate item id input range ====
             cmp eax, 1
             jl invalid_item_id
             mov ebx, currentItemCount
             cmp eax, ebx
             jg invalid_item_id
-
+            jmp item_id_valid_done  ; Skip error handler
+            
+        invalid_item_id_input:
+            invoke SetColor, CON_COLOR_ERROR
+            push offset invalidTypeMsg
+            call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
+            jmp get_item_id
+            
+        item_id_valid_done:
             ; convert user input to 0 based index so I can start changing the database
             dec eax
 
@@ -1882,21 +1965,49 @@ include C:\masm32\include\masm32rt.inc
             push offset inputBuf
             call StdIn
 
-            ; validate user input, check if input is empty
+            ; ==== Check if input is empty ====
             cmp byte ptr [inputBuf], 0
-            je get_new_stock
+            je invalid_new_stock_input
             
-            ; convert input to int using atodw
+            ; ==== Validate that input contains only digits ====
+            mov esi, offset inputBuf
+        validate_new_stock_loop:
+            mov al, [esi]
+            cmp al, 0                    ; End of string?
+            je new_stock_digits_valid
+            cmp al, 13                   ; Carriage return?
+            je new_stock_digits_valid
+            cmp al, 10                   ; Line feed?
+            je new_stock_digits_valid
+            cmp al, '0'                  ; Less than '0'?
+            jb invalid_new_stock_input
+            cmp al, '9'                  ; Greater than '9'?
+            ja invalid_new_stock_input
+            inc esi
+            jmp validate_new_stock_loop
+            
+        new_stock_digits_valid:
+            ; ==== Convert input to integer ====
             push offset inputBuf
             call atodw
-            jc get_new_stock
+            jc invalid_new_stock_input
             
-            ;validate stock if it's >= 0
+            ; ==== Validate stock is non-negative ====
+            ; Note: 0 is valid (no change to stock)
             cmp eax, 0
-            jl get_new_stock
+            jl invalid_new_stock_input
             
             mov newStock, eax
+            jmp new_stock_valid_done  ; Skip error handler
             
+        invalid_new_stock_input:
+            invoke SetColor, CON_COLOR_ERROR
+            push offset invalidQuantityMsg
+            call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
+            jmp get_new_stock
+            
+        new_stock_valid_done:
             ;update stock in database
             lea esi, itemDatabase
             add esi, itemOffset
