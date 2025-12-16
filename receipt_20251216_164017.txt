@@ -1,0 +1,15 @@
+
+========= RECEIPT =========
+Date: 2025-12-16   Time: 04:40 PM
+--------------------------
+Item 1: Toothpaste x 1 @ ₱15 = ₱15
+Item 2: Water x 12 @ ₱12 = ₱144
+--------------------------
+Sub Total:        ₱159
+VAT (12%):        ₱19
+--------------------------
+Total Amount:     ₱178
+===========================
+Amount Paid:      ₱180
+Change:           ₱2
+Thank you for your purchase!
