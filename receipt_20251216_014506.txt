@@ -1,0 +1,14 @@
+
+========= RECEIPT =========
+Date: 2025-12-16   Time: 01:45 AM
+--------------------------
+Item 1: Sandwich x 2 @ ₱15 = ₱30
+--------------------------
+Sub Total:        ₱30
+VAT (12%):        ₱3
+--------------------------
+Total Amount:     ₱33
+===========================
+Amount Paid:      ₱40
+Change:           ₱7
+Thank you for your purchase!

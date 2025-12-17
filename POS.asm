@@ -72,7 +72,7 @@ include C:\masm32\include\masm32rt.inc
 
 
     ; ==== Inventory Display ====
-    inventoryHeader db 13,10,"========= Current Inventory =========",13,10,0
+    inventoryHeader db 13,10,"============== Current Inventory ==============",13,10,13,10,0
     inventoryNum db "ID: ",0
     nameLabel db " | Name: ",0
     priceLabel db " | Price: ₱",0
@@ -242,10 +242,10 @@ include C:\masm32\include\masm32rt.inc
     initialStockPrompt db "Initial Stock: ", 0
     itemAddedMsg db "Item added succesffully!",13,10,0
     inventoryFullMsg db "Inventory is full! Cannot add more items!",13,10,0
+    duplicateItemMsg db "An item with this name already exists! Please enter a different name.",13,10,0
 
 
     ; ==== Summary Messages ====
-    summaryHeader db 13,10,"========= Sales Summary =========",13,10,0
     totalSalesMsg db "Total Transactions: ",0
     totalRevenueMsg db "Total Revenue: ₱",0
     mostSoldItemMsg db "Most Sold Item: ",0
@@ -297,34 +297,245 @@ include C:\masm32\include\masm32rt.inc
     menuHeader db "========= MiniMart POS System =========", 13,10,13,10,0
     menuLine db 64 dup(0)
 
+    ; ==== Console Color Support ====
+    hConsoleOutput DWORD ?  ; Console output handle
+    ; Color constants (Windows console colors) - using CON_ prefix to avoid conflicts
+    CON_COLOR_DEFAULT equ 07h      ; Gray on black
+    CON_COLOR_HEADER equ 0Bh        ; Light cyan
+    CON_COLOR_MENU equ 0Ah           ; Light green
+    CON_COLOR_SUCCESS equ 0Ah       ; Light green
+    CON_COLOR_WARNING equ 0Eh       ; Yellow
+    CON_COLOR_ERROR equ 0Ch         ; Light red
+    CON_COLOR_HIGHLIGHT equ 0Fh     ; Bright white
+    CON_COLOR_PRICE equ 0Bh         ; Light cyan
+    CON_COLOR_STOCK equ 0Eh         ; Yellow
+    CON_COLOR_RECEIPT equ 0Bh       ; Light cyan
+    CON_COLOR_TITLE equ 0Eh         ; Yellow
+
+    ; ==== Box Drawing Characters (ASCII compatible) ====
+    boxTopLeft db "+", 0
+    boxTopRight db "+", 0
+    boxBottomLeft db "+", 0
+    boxBottomRight db "+", 0
+    boxHorizontal db "=", 0
+    boxVertical db "|", 0
+    boxSingleLine db "-", 0
+    boxDoubleLine db "=", 0
+
 
 
 .code
 
+    ; ========================================
+    ; Initialize Console Colors
+    ; ========================================
+    InitConsoleColors PROC
+        invoke GetStdHandle, STD_OUTPUT_HANDLE
+        mov hConsoleOutput, eax
+        ret
+    InitConsoleColors ENDP
+
+    ; ========================================
+    ; Set Console Text Color
+    ; ========================================
+    SetColor PROC color:DWORD
+        push eax
+        mov eax, hConsoleOutput
+        test eax, eax
+        jz set_color_done
+        invoke SetConsoleTextAttribute, eax, color
+    set_color_done:
+        pop eax
+        ret
+    SetColor ENDP
+
+    ; ========================================
+    ; Print Colored Text
+    ; ========================================
+    PrintColored PROC textPtr:DWORD, color:DWORD
+        push eax
+        invoke SetColor, color
+        push textPtr
+        call StdOut
+        invoke SetColor, CON_COLOR_DEFAULT
+        pop eax
+        ret
+    PrintColored ENDP
+
+    ; ========================================
+    ; Print Box Header
+    ; ========================================
+    PrintBoxHeader PROC headerTextPtr:DWORD, boxWidth:DWORD
+        LOCAL i:DWORD
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        
+        ; Set header color
+        invoke SetColor, CON_COLOR_HEADER
+        
+        ; Top border
+        invoke StdOut, addr boxTopLeft
+        mov ecx, boxWidth
+        sub ecx, 2
+        mov i, 0
+    top_border_loop:
+        cmp i, ecx
+        jge top_border_done
+        invoke StdOut, addr boxHorizontal
+        inc i
+        jmp top_border_loop
+    top_border_done:
+        invoke StdOut, addr boxTopRight
+        invoke StdOut, chr$(13,10)
+        
+        ; Header text with padding
+        invoke StdOut, addr boxVertical
+        invoke StdOut, chr$(" ")
+        push headerTextPtr
+        call StdOut
+        
+        ; Calculate padding
+        push headerTextPtr
+        call lstrlen
+        mov ebx, boxWidth
+        sub ebx, 4
+        sub ebx, eax
+        mov i, 0
+    padding_loop:
+        cmp i, ebx
+        jge padding_done
+        invoke StdOut, chr$(" ")
+        inc i
+        jmp padding_loop
+    padding_done:
+        invoke StdOut, chr$(" ")
+        invoke StdOut, addr boxVertical
+        invoke StdOut, chr$(13,10)
+        
+        ; Bottom border
+        invoke StdOut, addr boxBottomLeft
+        mov ecx, boxWidth
+        sub ecx, 2
+        mov i, 0
+    bottom_border_loop:
+        cmp i, ecx
+        jge bottom_border_done
+        invoke StdOut, addr boxHorizontal
+        inc i
+        jmp bottom_border_loop
+    bottom_border_done:
+        invoke StdOut, addr boxBottomRight
+        invoke StdOut, chr$(13,10)
+        
+        invoke SetColor, CON_COLOR_DEFAULT
+        
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        ret
+    PrintBoxHeader ENDP
+
+    ; ========================================
+    ; Print Simple Styled Header
+    ; Format: ========= Section =========
+    ; ========================================
+    PrintStyledHeader PROC headerTextPtr:DWORD
+        push eax
+        
+        invoke SetColor, CON_COLOR_HEADER
+        invoke StdOut, chr$(13,10)
+        
+        ; Print left side equals (9 characters)
+        invoke StdOut, chr$("============== ")
+        
+        ; Print header text (only once)
+        push headerTextPtr
+        call StdOut
+        
+        ; Print right side equals (9 characters)
+        invoke StdOut, chr$(" ==============")
+        
+        invoke StdOut, chr$(13,10)
+        invoke SetColor, CON_COLOR_DEFAULT
+        
+        pop eax
+        ret
+    PrintStyledHeader ENDP
+
     start_minimart: 
+        ; ==== Initialize Console Colors ====
+        call InitConsoleColors
+        
+        invoke SetColor, CON_COLOR_TITLE
         invoke StdOut, chr$("Program starting...",13,10)
-        invoke Sleep, 2000  ; Wait 2 seconds
+        invoke SetColor, CON_COLOR_DEFAULT
+        invoke Sleep, 1500  ; Wait 1.5 seconds
         ; ==== Load inventory at startup ====
         call LoadInventory 
 
         ; ==== Load sales at startup ====
         call LoadSalesData
 
-
+        invoke SetColor, CON_COLOR_SUCCESS
         invoke StdOut, chr$("LoadInventory and LoadSalesData completed...",13,10)
-        invoke Sleep, 2000
+        invoke StdOut, chr$("System initialized successfully!",13,10)
+        invoke SetColor, CON_COLOR_DEFAULT
+        invoke Sleep, 1000
 
         ; ==== Clear Console Screen ====
         invoke crt_system, addr clsCmd
 
         ; ==== Display JJRC Minimart Art ====;
+        invoke SetColor, CON_COLOR_TITLE
         push offset jjrcMinimartArt
         call StdOut
+        invoke SetColor, CON_COLOR_DEFAULT
         
         option_loop:
-            ; ==== Display JJRC Menu ====
-            push offset minimartOption
-            call StdOut
+            ; ==== Display JJRC Menu with Styled Header ====
+            invoke PrintStyledHeader, chr$("JJRC Minimart - Main Menu")
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$(13,10,"  ")
+            invoke StdOut, chr$("1. ")
+            invoke SetColor, CON_COLOR_HIGHLIGHT
+            invoke StdOut, chr$("View Inventory")
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$(13,10,"  ")
+            invoke StdOut, chr$("2. ")
+            invoke SetColor, CON_COLOR_HIGHLIGHT
+            invoke StdOut, chr$("Add New Item")
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$(13,10,"  ")
+            invoke StdOut, chr$("3. ")
+            invoke SetColor, CON_COLOR_HIGHLIGHT
+            invoke StdOut, chr$("Update Item Stock")
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$(13,10,"  ")
+            invoke StdOut, chr$("4. ")
+            invoke SetColor, CON_COLOR_HIGHLIGHT
+            invoke StdOut, chr$("Delete Item")
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$(13,10,"  ")
+            invoke StdOut, chr$("5. ")
+            invoke SetColor, CON_COLOR_HIGHLIGHT
+            invoke StdOut, chr$("POS (Point of Sale)")
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$(13,10,"  ")
+            invoke StdOut, chr$("6. ")
+            invoke SetColor, CON_COLOR_HIGHLIGHT
+            invoke StdOut, chr$("View Sales Summary")
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$(13,10,"  ")
+            invoke StdOut, chr$("7. ")
+            invoke SetColor, CON_COLOR_HIGHLIGHT
+            invoke StdOut, chr$("Exit")
+            invoke SetColor, CON_COLOR_DEFAULT
+            invoke StdOut, chr$(13,10,13,10,"  Selection [1-7]: ")
         
         read_option:
             ; ==== Read and store user input ====
@@ -364,13 +575,17 @@ include C:\masm32\include\masm32rt.inc
             je exit_program
              
         invalid_selection_input_minimart:
+            invoke SetColor, CON_COLOR_ERROR
             push offset invalidSelectionMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             jmp read_option
             
         invalid_type_input_minimart:
+            invoke SetColor, CON_COLOR_ERROR
             push offset invalidTypeMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             jmp read_option
 
     start_inventory:     
@@ -380,18 +595,21 @@ include C:\masm32\include\masm32rt.inc
         jmp option_loop
         
         start_add_item:
+            invoke PrintStyledHeader, chr$("Add New Item")
             call AddNewItem
             invoke crt_system, chr$("pause")
             invoke crt_system, addr clsCmd
             jmp option_loop
 
         start_update_stock:
+            invoke PrintStyledHeader, chr$("Update Item Stock")
             call UpdateItemStock
             invoke crt_system, chr$("pause")
             invoke crt_system, addr clsCmd
             jmp option_loop
 
         start_delete_item:
+            invoke PrintStyledHeader, chr$("Delete Item")
             call DeleteItem
             invoke crt_system, chr$("pause")
             invoke crt_system, addr clsCmd
@@ -410,8 +628,10 @@ include C:\masm32\include\masm32rt.inc
         mov itemCount, 0
 
         ; ==== Display Shopping Cart Art ====;
+        invoke SetColor, CON_COLOR_TITLE
         push offset shoppingCartArt
         call StdOut
+        invoke SetColor, CON_COLOR_DEFAULT
         
         item_loop:
             
@@ -563,8 +783,11 @@ include C:\masm32\include\masm32rt.inc
             inc itemCount
             
             ; ==== Ask if user wants another item ====
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$("  ")
             push offset anotherMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
 
             push 32
             push offset inputBuf
@@ -599,16 +822,22 @@ include C:\masm32\include\masm32rt.inc
             mov finalTotal, eax
 
             ; ==== Display total before payment ====
-            invoke StdOut, chr$(13,10)
+            invoke SetColor, CON_COLOR_HIGHLIGHT
+            invoke StdOut, chr$(13,10,"  ")
             invoke StdOut, addr totalText
+            invoke SetColor, CON_COLOR_PRICE
             invoke StdOut, str$(finalTotal)
+            invoke SetColor, CON_COLOR_DEFAULT
             invoke StdOut, chr$(13,10)
             
             payment_loop:
                 
                 ; ==== Ask for payment ====
+                invoke SetColor, CON_COLOR_MENU
+                invoke StdOut, chr$("  ")
                 push offset paymentMsg
                 call StdOut
+                invoke SetColor, CON_COLOR_DEFAULT
                 
                 push 32
                 push offset inputBuf
@@ -656,9 +885,8 @@ include C:\masm32\include\masm32rt.inc
                     sub eax, finalTotal
                     mov change, eax
                     
-                    ; ==== Print Receipt ==== 
-                    push offset receiptHdr
-                    call StdOut
+                    ; ==== Print Receipt with Styling ==== 
+                    invoke PrintStyledHeader, chr$("RECEIPT")
 
                     ; ==== Get and Display Date/Time ====
                     invoke GetLocalTime, addr localTime
@@ -712,14 +940,19 @@ include C:\masm32\include\masm32rt.inc
                 append_am:
                     invoke wsprintf, esi, chr$("   Time: %02d:%02d AM"), eax, ebx
                 time_done:
-                    ; ==== Print Date/Time ====
+                    ; ==== Print Date/Time with Color ====
+                    invoke SetColor, CON_COLOR_RECEIPT
                     push offset dateTimeBuf
                     call StdOut
+                    invoke SetColor, CON_COLOR_DEFAULT
                     invoke StdOut, chr$(13,10)
                     
-                    ; ==== Print Dash Line ====
-                    push offset dashLine
-                    call StdOut
+                    ; ==== Print Separator Line ====
+                    invoke SetColor, CON_COLOR_MENU
+                    invoke StdOut, chr$("  ")
+                    invoke StdOut, chr$("------------------------------------------")
+                    invoke StdOut, chr$(13,10)
+                    invoke SetColor, CON_COLOR_DEFAULT
 
             ; ==== Counter ====
             mov esi, 0
@@ -737,7 +970,9 @@ include C:\masm32\include\masm32rt.inc
             lea edi, itemDatabase
             add edi, eax
             
-            ; ==== Print item number ====
+            ; ==== Print item with colors ====
+            invoke SetColor, CON_COLOR_RECEIPT
+            invoke StdOut, chr$("  ")
             push offset itemText
             call StdOut
             mov eax, esi
@@ -745,25 +980,25 @@ include C:\masm32\include\masm32rt.inc
             invoke StdOut, str$(eax)
             push offset colonText
             call StdOut
-            
-            ; ==== Print item name from database ====
+            invoke SetColor, CON_COLOR_HIGHLIGHT
             invoke StdOut, edi
-            
-            ; ==== Print quantity ====
+            invoke SetColor, CON_COLOR_RECEIPT
             push offset priceText
             call StdOut
+            invoke SetColor, CON_COLOR_STOCK
             invoke StdOut, str$(receiptQtys[esi*4])
-            
-            ; ==== Print price ====
+            invoke SetColor, CON_COLOR_RECEIPT
             push offset atText
             call StdOut
+            invoke SetColor, CON_COLOR_PRICE
             mov eax, [edi + NAME_SIZE]  ; Get price from database
             invoke StdOut, str$(eax)
-            
-            ; ==== Print total ====
+            invoke SetColor, CON_COLOR_RECEIPT
             push offset equalText
             call StdOut
+            invoke SetColor, CON_COLOR_HIGHLIGHT
             invoke StdOut, str$(receiptTotals[esi*4])
+            invoke SetColor, CON_COLOR_DEFAULT
             invoke StdOut, chr$(13,10)
             
             ;==== Increase item count ====
@@ -776,50 +1011,82 @@ include C:\masm32\include\masm32rt.inc
         print_totals:
 
             ;==== Print Separator ==== 
-            push offset dashLine
-            call StdOut
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$("  ")
+            invoke StdOut, chr$("------------------------------------------")
+            invoke StdOut, chr$(13,10)
+            invoke SetColor, CON_COLOR_DEFAULT
 
             ; ==== Print Subtotal ====
+            invoke SetColor, CON_COLOR_RECEIPT
+            invoke StdOut, chr$("  ")
             push offset subText
             call StdOut
+            invoke SetColor, CON_COLOR_PRICE
             invoke StdOut, str$(runningTotal)
+            invoke SetColor, CON_COLOR_DEFAULT
             invoke StdOut, chr$(13,10)
 
             ; ==== Print Tax Amount ====
+            invoke SetColor, CON_COLOR_RECEIPT
+            invoke StdOut, chr$("  ")
             push offset taxText
             call StdOut
+            invoke SetColor, CON_COLOR_PRICE
             invoke StdOut, str$(tax)
+            invoke SetColor, CON_COLOR_DEFAULT
             invoke StdOut, chr$(13,10)
             
             ;==== Print Separator ==== 
-            push offset dashLine
-            call StdOut
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$("  ")
+            invoke StdOut, chr$("------------------------------------------")
+            invoke StdOut, chr$(13,10)
+            invoke SetColor, CON_COLOR_DEFAULT
             
             ; ==== Print Final Total ====
+            invoke SetColor, CON_COLOR_HIGHLIGHT
+            invoke StdOut, chr$("  ")
             push offset totalText
             call StdOut
+            invoke SetColor, CON_COLOR_PRICE
             invoke StdOut, str$(finalTotal)
+            invoke SetColor, CON_COLOR_DEFAULT
             invoke StdOut, chr$(13,10)
             
             ;==== Print Separator ==== 
-            push offset dashLine2
-            call StdOut
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$("  ")
+            invoke StdOut, chr$("==========================================")
+            invoke StdOut, chr$(13,10)
+            invoke SetColor, CON_COLOR_DEFAULT
             
 
             ; ==== Print Payment Details ====
+            invoke SetColor, CON_COLOR_RECEIPT
+            invoke StdOut, chr$("  ")
             push offset paidText
             call StdOut
+            invoke SetColor, CON_COLOR_SUCCESS
             invoke StdOut, str$(payment)
+            invoke SetColor, CON_COLOR_DEFAULT
             invoke StdOut, chr$(13,10)
             
+            invoke SetColor, CON_COLOR_RECEIPT
+            invoke StdOut, chr$("  ")
             push offset changeText
             call StdOut
+            invoke SetColor, CON_COLOR_SUCCESS
             invoke StdOut, str$(change)
+            invoke SetColor, CON_COLOR_DEFAULT
             invoke StdOut, chr$(13,10)
 
             ; ==== Print Thank you message ====
+            invoke SetColor, CON_COLOR_SUCCESS
+            invoke StdOut, chr$(13,10,"  ")
             push offset thankYouMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
 
             ; ==== Build and Save Receipt to File ====
             ; Build receipt content
@@ -839,21 +1106,23 @@ include C:\masm32\include\masm32rt.inc
             jmp option_loop  ; Return to main menu instead of exiting
 
         out_of_stock_error:
+            invoke SetColor, CON_COLOR_ERROR
             push offset outOfStockMsg
             call StdOut
-
+            invoke SetColor, CON_COLOR_DEFAULT
             jmp item_loop
 
         insufficient_stock_error:
+            invoke SetColor, CON_COLOR_WARNING
             push offset insufficientStockMsg
             call StdOut
-
+            invoke SetColor, CON_COLOR_HIGHLIGHT
             mov ebx, stock
             invoke StdOut, str$(stock)
-            
+            invoke SetColor, CON_COLOR_WARNING
             push offset availableMsg
             call StdOut
-            
+            invoke SetColor, CON_COLOR_DEFAULT
             jmp read_quantity
             
 
@@ -870,14 +1139,18 @@ include C:\masm32\include\masm32rt.inc
             jg pos_exit_with_items
             
             ; No items, just exit
+            invoke SetColor, CON_COLOR_WARNING
             push offset posCancelMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             invoke crt_system, addr clsCmd
             jmp option_loop
             
         pos_exit_with_items:
             ; Items in cart, confirm cancellation
-            invoke StdOut, chr$(13,10,"You have items in your cart. Cancel transaction? (Y/N): ")
+            invoke SetColor, CON_COLOR_WARNING
+            invoke StdOut, chr$(13,10,"  You have items in your cart. Cancel transaction? (Y/N): ")
+            invoke SetColor, CON_COLOR_DEFAULT
             push 32
             push offset inputBuf
             call StdIn
@@ -898,8 +1171,10 @@ include C:\masm32\include\masm32rt.inc
             ; Reset cart
             mov runningTotal, 0
             mov itemCount, 0
+            invoke SetColor, CON_COLOR_WARNING
             push offset posCancelMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             invoke crt_system, addr clsCmd
             jmp option_loop
             
@@ -908,40 +1183,49 @@ include C:\masm32\include\masm32rt.inc
             jmp item_loop
             
         invalid_selection_input:
+            invoke SetColor, CON_COLOR_ERROR
             push offset invalidSelectionMsg
             call StdOut
-
+            invoke SetColor, CON_COLOR_DEFAULT
             jmp read_item
             
         invalid_quantity_input:
+            invoke SetColor, CON_COLOR_ERROR
             push offset invalidQuantityMsg
             call StdOut
-
+            invoke SetColor, CON_COLOR_DEFAULT
             jmp read_quantity
 
         invalid_type_input:
+            invoke SetColor, CON_COLOR_ERROR
             push offset invalidTypeMsg
             call StdOut
-
+            invoke SetColor, CON_COLOR_DEFAULT
             jmp read_item
 
         invalid_payment_input:
+            invoke SetColor, CON_COLOR_ERROR
             push offset invalidPay
             call StdOut
-            
+            invoke SetColor, CON_COLOR_DEFAULT
             jmp payment_loop
         
         insufficient_payment:
+            invoke SetColor, CON_COLOR_ERROR
             push offset insuffMsg
             call StdOut
+            invoke SetColor, CON_COLOR_HIGHLIGHT
             invoke StdOut, str$(finalTotal)
-            
+            invoke SetColor, CON_COLOR_DEFAULT
             jmp payment_loop
 
         exit_program:
+            invoke SetColor, CON_COLOR_TITLE
+            invoke StdOut, chr$(13,10,"  ")
             push offset exitProgramMsg
             call StdOut
-            
+            invoke SetColor, CON_COLOR_DEFAULT
+            invoke StdOut, chr$(13,10)
             invoke ExitProcess, 0
             
     ; ========================================
@@ -1162,9 +1446,7 @@ include C:\masm32\include\masm32rt.inc
         LOCAL itemNum:DWORD, itemOffset:DWORD
         LOCAL itemPrice:DWORD, itemStock:DWORD
 
-        invoke StdOut, chr$(13,10)
-        push offset menuHeader
-        call StdOut
+        invoke PrintStyledHeader, chr$("MiniMart POS System - Select Items")
 
 
         ; Check if there are any items
@@ -1198,33 +1480,101 @@ include C:\masm32\include\masm32rt.inc
             ;Clear Menu line buffer
             invoke RtlZeroMemory, addr menuLine, 64
             
-            ; Format: "X. ItemName - ₱Price (Stock: X)"
+            ; Display with colors
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$("  ")
             mov eax, itemNum
             inc eax ;To display as 1-based since by default it is 0 based
-            invoke wsprintf, addr menuLine, chr$("%d. %-12s - ₱%-4d (Stock: %d)"), eax, esi, itemPrice, itemStock
-            
-            push offset menuLine
-            call StdOut
+            invoke StdOut, str$(eax)
+            invoke StdOut, chr$(". ")
+            invoke SetColor, CON_COLOR_HIGHLIGHT
+            invoke StdOut, esi
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$(" - ")
+            invoke SetColor, CON_COLOR_PRICE
+            invoke StdOut, chr$("₱")
+            invoke StdOut, str$(itemPrice)
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$(" ")
+            invoke SetColor, CON_COLOR_STOCK
+            invoke StdOut, addr stockDisplayPrompt
+            invoke StdOut, str$(itemStock)
+            invoke StdOut, addr closeParen
+            invoke SetColor, CON_COLOR_DEFAULT
             invoke StdOut, chr$(13,10)
             
             inc itemNum
             jmp display_loop
             
         no_items:
+            invoke SetColor, CON_COLOR_WARNING
             push offset noItemsMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
         
 
         display_done:
             ; Display exit option
-            push offset posExitOptionMsg
-            call StdOut
-            invoke StdOut, chr$(13,10,"Selection [0-")
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$(13,10,"  ")
+            invoke StdOut, chr$("0. ")
+            invoke SetColor, CON_COLOR_ERROR
+            invoke StdOut, chr$("Exit/Cancel")
+            invoke SetColor, CON_COLOR_DEFAULT
+            invoke StdOut, chr$(13,10,13,10,"  Selection [0-")
             invoke StdOut, str$(currentItemCount)
             invoke StdOut, chr$("]: ")
             ret
 
     DisplayDynamicMenu ENDP
+    
+    ; ========================================
+    ; Check for Duplicate Item Name
+    ; Returns: EAX = 1 if duplicate found, 0 if not found
+    ; ========================================
+    CheckDuplicateItemName PROC
+        LOCAL itemOffset:DWORD
+        LOCAL itemIndex:DWORD
+        
+        ; Initialize itemIndex to 0
+        mov itemIndex, 0
+        
+        ; Loop through all existing items
+        check_loop:
+            mov eax, itemIndex
+            cmp eax, currentItemCount
+            jge no_duplicate_found  ; Reached end, no duplicate
+            
+            ; Calculate offset for current item
+            mov eax, itemIndex
+            mov ebx, ITEM_SIZE
+            mul ebx
+            mov itemOffset, eax
+            
+            ; Get pointer to current item's name
+            lea esi, itemDatabase
+            add esi, itemOffset
+            
+            ; Compare current item name with tempName (case-insensitive)
+            invoke lstrcmpi, esi, addr tempName
+            
+            ; If strings match (return value 0), duplicate found
+            cmp eax, 0
+            je duplicate_found
+            
+            ; Move to next item
+            inc itemIndex
+            jmp check_loop
+        
+        duplicate_found:
+            mov eax, 1  ; Return 1 (duplicate found)
+            ret
+        
+        no_duplicate_found:
+            mov eax, 0  ; Return 0 (no duplicate)
+            ret
+    
+    CheckDuplicateItemName ENDP
     
     ; ========================================
     ; Add New Item
@@ -1237,18 +1587,23 @@ include C:\masm32\include\masm32rt.inc
         cmp eax, MAX_ITEMS
         jge inventory_full
         
-        ;Display add item menu
-        push offset addItemMenu
-        call StdOut
-        invoke StdOut, chr$(13,10)
+        ;Display add item menu with colors
+        invoke SetColor, CON_COLOR_MENU
+        invoke StdOut, chr$("  Enter item details",13,10)
+        invoke SetColor, CON_COLOR_WARNING
+        invoke StdOut, chr$("  ")
         push offset addItemCancelPrompt
         call StdOut
+        invoke SetColor, CON_COLOR_DEFAULT
         invoke StdOut, chr$(13,10)
 
         ; Get item name
         get_name:
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$("  ")
             push offset namePrompt
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
 
             push NAME_SIZE
             push offset tempName
@@ -1273,31 +1628,48 @@ include C:\masm32\include\masm32rt.inc
             je name_empty_error
             cmp byte ptr [tempName], 10
             je name_empty_error
-            jmp get_price  ; Name is valid, proceed
+            
+            ; Check for duplicate item name
+            call CheckDuplicateItemName
+            cmp eax, 1
+            je duplicate_name_error
+            
+            jmp get_price  ; Name is valid and not duplicate, proceed
             
         name_empty_error:
             push offset invalidSelectionMsg
             call StdOut
             jmp get_name
+            
+        duplicate_name_error:
+            invoke SetColor, CON_COLOR_ERROR
+            invoke StdOut, chr$("  ")
+            push offset duplicateItemMsg
+            call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
+            jmp get_name
         
         ;Get item price
         get_price:
             ; Display price prompt
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$("  ")
             push offset pricePrompt
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             
             ; Input
             push 32
             push offset inputBuf
             call StdIn
 
-            ; input validation
+            ; ==== Check if input is empty ====
             cmp byte ptr [inputBuf], 0
-            je get_price
+            je invalid_price_input
             
-            ; Check for cancel (0) before converting
+            ; ==== Check for cancel (0) before validating digits ====
             cmp byte ptr [inputBuf], '0'
-            jne convert_price
+            jne validate_price_digits
             ; Check if it's just "0" (next char should be null, CR, or LF)
             cmp byte ptr [inputBuf + 1], 0
             je add_item_cancelled
@@ -1306,35 +1678,66 @@ include C:\masm32\include\masm32rt.inc
             cmp byte ptr [inputBuf + 1], 10
             je add_item_cancelled
             
-        convert_price:
-            ;Converting input(str) to int
+        validate_price_digits:
+            ; ==== Validate that input contains only digits ====
+            mov esi, offset inputBuf
+        validate_price_loop:
+            mov al, [esi]
+            cmp al, 0                    ; End of string?
+            je price_digits_valid
+            cmp al, 13                   ; Carriage return?
+            je price_digits_valid
+            cmp al, 10                   ; Line feed?
+            je price_digits_valid
+            cmp al, '0'                  ; Less than '0'?
+            jb invalid_price_input
+            cmp al, '9'                  ; Greater than '9'?
+            ja invalid_price_input
+            inc esi
+            jmp validate_price_loop
+            
+        price_digits_valid:
+            ; ==== Convert input to integer ====
             push offset inputBuf
             call atodw
-            jc get_price
+            jc invalid_price_input
             
-            ; Validate price is positive
+            ; ==== Validate price is positive ====
             cmp eax, 0
-            jle get_price
+            jle invalid_price_input
             mov tempPrice, eax
+            jmp price_valid_done  ; Skip error handler
+            
+        invalid_price_input:
+            invoke SetColor, CON_COLOR_ERROR
+            push offset invalidQuantityMsg
+            call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
+            jmp get_price
+            
+        price_valid_done:
             
         ;Get item Stock
         get_stock:
             ; Display stock prompt
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$("  ")
             push offset initialStockPrompt
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             
             ;input
             push 32
             push offset inputBuf
             call StdIn
             
-            ;input validation
+            ; ==== Check if input is empty ====
             cmp byte ptr [inputBuf], 0
-            je get_stock
+            je invalid_stock_input
 
-            ; Check for cancel (0) before converting
+            ; ==== Check for cancel (0) before validating digits ====
             cmp byte ptr [inputBuf], '0'
-            jne convert_stock
+            jne validate_stock_digits
             ; Check if it's just "0" (next char should be null, CR, or LF)
             cmp byte ptr [inputBuf + 1], 0
             je add_item_cancelled
@@ -1343,18 +1746,46 @@ include C:\masm32\include\masm32rt.inc
             cmp byte ptr [inputBuf + 1], 10
             je add_item_cancelled
             
-        convert_stock:
-            ;Converting input(str) to int
+        validate_stock_digits:
+            ; ==== Validate that input contains only digits ====
+            mov esi, offset inputBuf
+        validate_stock_loop:
+            mov al, [esi]
+            cmp al, 0                    ; End of string?
+            je stock_digits_valid
+            cmp al, 13                   ; Carriage return?
+            je stock_digits_valid
+            cmp al, 10                   ; Line feed?
+            je stock_digits_valid
+            cmp al, '0'                  ; Less than '0'?
+            jb invalid_stock_input
+            cmp al, '9'                  ; Greater than '9'?
+            ja invalid_stock_input
+            inc esi
+            jmp validate_stock_loop
+            
+        stock_digits_valid:
+            ; ==== Convert input to integer ====
             push offset inputBuf
             call atodw
-            jc get_stock
+            jc invalid_stock_input
             
-            ; Validate stock is non-negative (0 is valid for stock, but we use it for cancel)
-            ; Since we already checked for "0" above, if we get here with 0, it means invalid input
+            ; ==== Validate stock is non-negative ====
+            ; Note: 0 is valid for stock, but "0" alone is used for cancel
+            ; If we get here with 0, it means it was "00" or similar, which is valid
             cmp eax, 0
-            jl get_stock
+            jl invalid_stock_input
             mov tempStock, eax
+            jmp stock_valid_done  ; Skip error handler
             
+        invalid_stock_input:
+            invoke SetColor, CON_COLOR_ERROR
+            push offset invalidQuantityMsg
+            call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
+            jmp get_stock
+            
+        stock_valid_done:
             ; Calculate offset for new item
             mov eax, currentItemCount
             mov ebx, ITEM_SIZE
@@ -1383,20 +1814,28 @@ include C:\masm32\include\masm32rt.inc
             call SaveInventory
             
             ; Print successful item add
+            invoke SetColor, CON_COLOR_SUCCESS
+            invoke StdOut, chr$("  ")
             push offset itemAddedMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             
             ret
 
         inventory_full:
+            invoke SetColor, CON_COLOR_ERROR
+            invoke StdOut, chr$("  ")
             push offset inventoryFullMsg
             call StdOut
-
+            invoke SetColor, CON_COLOR_DEFAULT
             ret
             
         add_item_cancelled:
+            invoke SetColor, CON_COLOR_WARNING
+            invoke StdOut, chr$("  ")
             push offset addItemCancelledMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             ret
 
 
@@ -1410,9 +1849,8 @@ include C:\masm32\include\masm32rt.inc
         LOCAL itemNum:DWORD, itemOffset:DWORD
         LOCAL itemPrice:DWORD, itemStock:DWORD
 
-        ;Display inventory header
-        push offset inventoryHeader
-        call StdOut
+        ;Display inventory header with styling
+        invoke PrintStyledHeader, chr$("Current Inventory")
 
         ; get current item count
         mov eax, currentItemCount
@@ -1441,39 +1879,48 @@ include C:\masm32\include\masm32rt.inc
         mov eax, [esi + NAME_SIZE + 4]
         mov itemStock, eax
 
-        ; Display Item
-        push offset inventoryNum
-        call StdOut
-
+        ; Display Item with colors
+        invoke SetColor, CON_COLOR_MENU
+        invoke StdOut, chr$("  ")
+        invoke StdOut, addr boxVertical
+        invoke StdOut, chr$(" ID: ")
+        invoke SetColor, CON_COLOR_HIGHLIGHT
         mov eax, itemNum
         inc eax
         invoke StdOut, str$(eax)
-        
-        ; Display item name
-        push offset nameLabel
-        call StdOut
+        invoke SetColor, CON_COLOR_MENU
+        invoke StdOut, chr$(" ")
+        invoke StdOut, addr boxVertical
+        invoke StdOut, chr$(" Name: ")
+        invoke SetColor, CON_COLOR_HIGHLIGHT
         invoke StdOut, esi
-
-        ; Display item price
-        push offset priceLabel
-        call StdOut
+        invoke SetColor, CON_COLOR_MENU
+        invoke StdOut, chr$(" ")
+        invoke StdOut, addr boxVertical
+        invoke StdOut, chr$(" Price: ")
+        invoke SetColor, CON_COLOR_PRICE
+        invoke StdOut, chr$("₱")
         invoke StdOut, str$(itemPrice)
-        
-        ;Display item stock
-        push offset stockLabel
-        call StdOut 
+        invoke SetColor, CON_COLOR_MENU
+        invoke StdOut, chr$(" ")
+        invoke SetColor, CON_COLOR_STOCK
+        invoke StdOut, chr$("│ Stock: ")
         invoke StdOut, str$(itemStock)
-
-        ;New line
+        invoke SetColor, CON_COLOR_MENU
+        invoke StdOut, chr$(" ")
+        invoke StdOut, addr boxVertical
         invoke StdOut, chr$(13,10)
+        invoke SetColor, CON_COLOR_DEFAULT
         
         inc itemNum
         jmp inv_loop
 
         
     no_items_inv:
+        invoke SetColor, CON_COLOR_WARNING
         push offset noItemsMsg
         call StdOut
+        invoke SetColor, CON_COLOR_DEFAULT
         
     inv_done:
         invoke StdOut, chr$(13,10)
@@ -1496,43 +1943,69 @@ include C:\masm32\include\masm32rt.inc
 
         ; display current inventory first so that the user can pick which item it wants to update
         call DisplayInventory
-        
-        ; display update menu
-        push offset updateStockMenu
-        call StdOut
 
         get_item_id:
             ;display prompt for item id
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$("  ")
             push offset selectItemPrompt
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
 
             ; get user input
             push 32
             push offset inputBuf
             call StdIn
 
-            ; validate input
+            ; ==== Check if input is empty ====
             cmp byte ptr [inputBuf], 0
-            je get_item_id 
+            je invalid_item_id_input 
 
-            ; convert user input to int using atodw
+            ; ==== Validate that input contains only digits ====
+            mov esi, offset inputBuf
+        validate_item_id_loop:
+            mov al, [esi]
+            cmp al, 0                    ; End of string?
+            je item_id_digits_valid
+            cmp al, 13                   ; Carriage return?
+            je item_id_digits_valid
+            cmp al, 10                   ; Line feed?
+            je item_id_digits_valid
+            cmp al, '0'                  ; Less than '0'?
+            jb invalid_item_id_input
+            cmp al, '9'                  ; Greater than '9'?
+            ja invalid_item_id_input
+            inc esi
+            jmp validate_item_id_loop
+            
+        item_id_digits_valid:
+            ; ==== Convert user input to int ====
             push offset inputBuf
             call atodw
-            jc get_item_id
+            jc invalid_item_id_input
             
-            ; Check for cancel (0)
+            ; ==== Check for cancel (0) ====
             cmp eax, 0
             je update_cancelled
 
             mov itemID, eax
 
-            ; validate item id input range 
+            ; ==== Validate item id input range ====
             cmp eax, 1
             jl invalid_item_id
             mov ebx, currentItemCount
             cmp eax, ebx
             jg invalid_item_id
-
+            jmp item_id_valid_done  ; Skip error handler
+            
+        invalid_item_id_input:
+            invoke SetColor, CON_COLOR_ERROR
+            push offset invalidTypeMsg
+            call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
+            jmp get_item_id
+            
+        item_id_valid_done:
             ; convert user input to 0 based index so I can start changing the database
             dec eax
 
@@ -1543,30 +2016,61 @@ include C:\masm32\include\masm32rt.inc
             
 
         get_new_stock:
-            ; display prompt for new stoc
+            ; display prompt for new stock
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$("  ")
             push offset newStockPrompt
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             
             ; get user input
             push 32
             push offset inputBuf
             call StdIn
 
-            ; validate user input, check if input is empty
+            ; ==== Check if input is empty ====
             cmp byte ptr [inputBuf], 0
-            je get_new_stock
+            je invalid_new_stock_input
             
-            ; convert input to int using atodw
+            ; ==== Validate that input contains only digits ====
+            mov esi, offset inputBuf
+        validate_new_stock_loop:
+            mov al, [esi]
+            cmp al, 0                    ; End of string?
+            je new_stock_digits_valid
+            cmp al, 13                   ; Carriage return?
+            je new_stock_digits_valid
+            cmp al, 10                   ; Line feed?
+            je new_stock_digits_valid
+            cmp al, '0'                  ; Less than '0'?
+            jb invalid_new_stock_input
+            cmp al, '9'                  ; Greater than '9'?
+            ja invalid_new_stock_input
+            inc esi
+            jmp validate_new_stock_loop
+            
+        new_stock_digits_valid:
+            ; ==== Convert input to integer ====
             push offset inputBuf
             call atodw
-            jc get_new_stock
+            jc invalid_new_stock_input
             
-            ;validate stock if it's >= 0
+            ; ==== Validate stock is non-negative ====
+            ; Note: 0 is valid (no change to stock)
             cmp eax, 0
-            jl get_new_stock
+            jl invalid_new_stock_input
             
             mov newStock, eax
+            jmp new_stock_valid_done  ; Skip error handler
             
+        invalid_new_stock_input:
+            invoke SetColor, CON_COLOR_ERROR
+            push offset invalidQuantityMsg
+            call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
+            jmp get_new_stock
+            
+        new_stock_valid_done:
             ;update stock in database
             lea esi, itemDatabase
             add esi, itemOffset
@@ -1582,23 +2086,34 @@ include C:\masm32\include\masm32rt.inc
             call SaveInventory
 
             ; Display success message
+            invoke SetColor, CON_COLOR_SUCCESS
+            invoke StdOut, chr$("  ")
             push offset stockUpdatedMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             ret
             
         invalid_item_id:
+            invoke SetColor, CON_COLOR_ERROR
             push offset invalidSelectionMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             jmp get_item_id
             
         update_cancelled:
+            invoke SetColor, CON_COLOR_WARNING
+            invoke StdOut, chr$("  ")
             push offset updateCancelledMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             ret
             
         no_items_to_update:
+            invoke SetColor, CON_COLOR_WARNING
+            invoke StdOut, chr$("  ")
             push offset noItemsMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             ret
             
         
@@ -1621,14 +2136,13 @@ include C:\masm32\include\masm32rt.inc
         ; Display current inventory first so user can see what to delete
         call DisplayInventory
         
-        ; Display delete menu
-        push offset deleteItemMenu
-        call StdOut
-        
         get_item_to_delete:
             ; Display prompt for item ID
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$("  ")
             push offset selectItemToDeletePrompt
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             
             ; Get user input
             push 32
@@ -1670,13 +2184,19 @@ include C:\masm32\include\masm32rt.inc
             add esi, itemOffset
             
             ; Display item to be deleted
-            invoke StdOut, chr$(13,10,"Item to delete: ")
+            invoke SetColor, CON_COLOR_WARNING
+            invoke StdOut, chr$(13,10,"  Item to delete: ")
+            invoke SetColor, CON_COLOR_HIGHLIGHT
             invoke StdOut, esi
+            invoke SetColor, CON_COLOR_DEFAULT
             invoke StdOut, chr$(13,10)
             
             ; Confirm deletion
+            invoke SetColor, CON_COLOR_ERROR
+            invoke StdOut, chr$("  ")
             push offset confirmDeleteMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             
             push 32
             push offset inputBuf
@@ -1756,23 +2276,34 @@ include C:\masm32\include\masm32rt.inc
             call SaveInventory
             
             ; Display success message
+            invoke SetColor, CON_COLOR_SUCCESS
+            invoke StdOut, chr$("  ")
             push offset itemDeletedMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             ret
             
         invalid_delete_item_id:
+            invoke SetColor, CON_COLOR_ERROR
             push offset invalidSelectionMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             jmp get_item_to_delete
             
         delete_cancelled:
+            invoke SetColor, CON_COLOR_WARNING
+            invoke StdOut, chr$("  ")
             push offset deleteCancelledMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             ret
             
         no_items_to_delete:
+            invoke SetColor, CON_COLOR_WARNING
+            invoke StdOut, chr$("  ")
             push offset noItemsToDeleteMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             ret
     
     DeleteItem ENDP
@@ -1972,9 +2503,8 @@ include C:\masm32\include\masm32rt.inc
         LOCAL itemQuantities[50]:DWORD  ; Track quantity sold for each item
         LOCAL i:DWORD, j:DWORD, itemOffset:DWORD, itemRevenue:DWORD
         
-        ;Display header
-        push offset summaryHeader
-        call StdOut
+        ;Display header with styling
+        invoke PrintStyledHeader, chr$("Sales Summary")
         
         ; check if there are any sales
         mov eax, currentSalesCount
@@ -2058,24 +2588,34 @@ include C:\masm32\include\masm32rt.inc
         found_most_sold:
             
             ;Display total transactions
+            invoke SetColor, CON_COLOR_RECEIPT
+            invoke StdOut, chr$("  ")
             push offset totalSalesMsg
             call StdOut
-
+            invoke SetColor, CON_COLOR_HIGHLIGHT
             invoke StdOut, str$(currentSalesCount)
+            invoke SetColor, CON_COLOR_DEFAULT
             invoke StdOut, chr$(13,10)
 
             ; Display total revenue
+            invoke SetColor, CON_COLOR_RECEIPT
+            invoke StdOut, chr$("  ")
             push offset totalRevenueMsg
             call StdOut
+            invoke SetColor, CON_COLOR_PRICE
             invoke StdOut, str$(totalRevenue)
+            invoke SetColor, CON_COLOR_DEFAULT
             invoke StdOut, chr$(13,10, 13,10)
 
             ; Display most sold item
             cmp mostSoldQty, 0
             je no_most_sold
 
+            invoke SetColor, CON_COLOR_RECEIPT
+            invoke StdOut, chr$("  ")
             push offset mostSoldItemMsg
             call StdOut
+            invoke SetColor, CON_COLOR_HIGHLIGHT
 
             ; get item name of the most sold
             mov eax, mostSoldItemID
@@ -2085,18 +2625,25 @@ include C:\masm32\include\masm32rt.inc
             add esi, eax
             invoke StdOut, esi
 
+            invoke SetColor, CON_COLOR_STOCK
             push offset soldPrefixMsg
             call StdOut
             invoke StdOut, str$(mostSoldQty)
             push offset soldSuffixMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             
          no_most_sold:
-            ; Display sales breakdown
+            ; Display sales breakdown with colors
+            invoke SetColor, CON_COLOR_HEADER
+            invoke StdOut, chr$(13,10,"  ")
             push offset salesBreakdownMsg
             call StdOut
-            push offset dashLine3
-            call StdOut
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$("  ")
+            invoke StdOut, chr$("========================================")
+            invoke StdOut, chr$(13,10)
+            invoke SetColor, CON_COLOR_DEFAULT
             
             mov i, 0
 
@@ -2134,13 +2681,26 @@ include C:\masm32\include\masm32rt.inc
                 imul eax, edx           ; multiply by price to get revenue per item. left out tax since it's not part of the revenue ata
                 mov itemRevenue, eax    ; save revenue before invoke calls (invoke doesn't preserve registers)
                 
-                ; Format and display
-                invoke RtlZeroMemory, addr itemSalesLine, 64
+                ; Format and display with colors
+                invoke SetColor, CON_COLOR_MENU
+                invoke StdOut, chr$("  ")
                 mov ecx, i
                 inc ecx
-                invoke wsprintf, addr itemSalesLine, chr$("  %d. %-15s: Qty %3d  Revenue: ₱%d"), ecx, esi, DWORD PTR [edi], itemRevenue
-                push offset itemSalesLine
-                call StdOut
+                invoke StdOut, str$(ecx)
+                invoke StdOut, chr$(". ")
+                invoke SetColor, CON_COLOR_HIGHLIGHT
+                invoke StdOut, esi
+                invoke SetColor, CON_COLOR_MENU
+                invoke StdOut, chr$(": Qty ")
+                invoke SetColor, CON_COLOR_STOCK
+                mov eax, [edi]
+                invoke StdOut, str$(eax)
+                invoke SetColor, CON_COLOR_MENU
+                invoke StdOut, chr$("  Revenue: ")
+                invoke SetColor, CON_COLOR_PRICE
+                invoke StdOut, chr$("₱")
+                invoke StdOut, str$(itemRevenue)
+                invoke SetColor, CON_COLOR_DEFAULT
                 invoke StdOut, chr$(13,10)
                 
             skip_item:
@@ -2148,12 +2708,18 @@ include C:\masm32\include\masm32rt.inc
                 jmp display_breakdown
                 
         breakdown_done:
-            push offset dashLine3
-            call StdOut
+            invoke SetColor, CON_COLOR_MENU
+            invoke StdOut, chr$("  ")
+            invoke StdOut, chr$("========================================")
+            invoke StdOut, chr$(13,10)
+            invoke SetColor, CON_COLOR_DEFAULT
             
-            ; Display low stock warning
+            ; Display low stock warning with colors
+            invoke SetColor, CON_COLOR_WARNING
+            invoke StdOut, chr$("  ")
             push offset leastStockMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             
             mov i, 0
 
@@ -2173,16 +2739,23 @@ include C:\masm32\include\masm32rt.inc
                 cmp eax, 10
                 jge not_low_stock
                 
-                ; Display item with low stock
+                ; Display item with low stock with colors
+                invoke SetColor, CON_COLOR_WARNING
+                invoke StdOut, chr$("  ")
                 push offset lowStockPrefixMsg
                 call StdOut
+                invoke SetColor, CON_COLOR_HIGHLIGHT
                 invoke StdOut, esi
+                invoke SetColor, CON_COLOR_WARNING
                 push offset lowStockOpenParenMsg
                 call StdOut
+                invoke SetColor, CON_COLOR_ERROR
                 mov eax, [esi + NAME_SIZE + 4]
                 invoke StdOut, str$(eax)
+                invoke SetColor, CON_COLOR_WARNING
                 push offset lowStockSuffixMsg
                 call StdOut
+                invoke SetColor, CON_COLOR_DEFAULT
                 
             not_low_stock:
                 inc i
@@ -2193,8 +2766,10 @@ include C:\masm32\include\masm32rt.inc
             ret
             
         no_sales_summary:
+            invoke SetColor, CON_COLOR_WARNING
             push offset noSalesMsg
             call StdOut
+            invoke SetColor, CON_COLOR_DEFAULT
             ret
                  
         

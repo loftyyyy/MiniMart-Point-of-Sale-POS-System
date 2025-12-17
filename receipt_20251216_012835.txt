@@ -1,0 +1,14 @@
+
+========= RECEIPT =========
+Date: 2025-12-16   Time: 01:28 AM
+--------------------------
+Item 1: Donut x 4 @ ₱12 = ₱48
+--------------------------
+Sub Total:        ₱48
+VAT (12%):        ₱5
+--------------------------
+Total Amount:     ₱53
+===========================
+Amount Paid:      ₱60
+Change:           ₱7
+Thank you for your purchase!
